@@ -14,11 +14,11 @@ const screenWidth = Dimensions.get('window').width;
 
 const monthlyData = {
   April: {
-    litres: [10, 20, 15, 50, 25, 18, 22, 15, 12, 14, 18, 20, 22, 25, 18],
+    litres: [10, 20, 15, 30, 25, 18, 22, 15, 12, 14, 18, 20, 22, 25, 18, 10, 9, 19, 17, 24, 21, 14, 18, 15, 12, 13, 15, 17, 19, 21],
     pricePerLitre: 20,
   },
   March: {
-    litres: [8, 18, 14, 28, 22, 16, 20, 15, 12, 13, 17, 19, 21, 23, 16],
+    litres: [8, 18, 14, 28, 22, 16, 20, 15, 12, 13, 17, 19, 21, 23, 16, 12, 22, 18, 26, 20, 15, 19, 15, 12, 14, 16, 18, 20, 23, 10, 5],
     pricePerLitre: 18,
   },
   February: {
@@ -26,7 +26,7 @@ const monthlyData = {
     pricePerLitre: 19,
   },
   January: {
-    litres: [9, 19, 17, 24, 21, 14, 18, 15, 12, 13, 15, 17, 19, 21, 14],
+    litres: [9, 19, 17, 24, 21, 14, 18, 15, 12, 13, 15, 17, 19, 21, 14, 10],
     pricePerLitre: 17,
   },
 };
@@ -126,19 +126,19 @@ const MonthlyReports = () => {
           }}
           width={chartWidth}
           height={420}
-          yAxisSuffix=" L"
+          // yAxisSuffix="L"
           fromZero
           chartConfig={chartConfig}
           style={styles.chartStyle}
-          showBarTops={false}
+          showBarTops={true}
           withCustomBarColorFromData={false}
           flatColor={false}
-          withInnerLines={false}
+          withInnerLines={true}
           withVerticalLabels={true}
           withHorizontalLabels={true}
           withAnimation={true}
           animationDuration={2000}
-          segments={4}
+          segments={7}
         />
       </ScrollView>
 
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#2A5866',
-    marginBottom: 10,
+    marginBottom: 5,
     textAlign: 'center',
   },
   buttonContainer: {
@@ -208,6 +208,7 @@ const styles = StyleSheet.create({
   chartScrollView: {
     marginVertical: 10,
     borderRadius: 8,
+    margin: -9,
   },
   chartStyle: {
     borderRadius: 8,
@@ -215,7 +216,8 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 7,
+    // marginBottom: 20,
     paddingHorizontal: 5,
   },
   statBox: {
@@ -244,8 +246,8 @@ const styles = StyleSheet.create({
 
 const chartConfig = {
   backgroundColor: '#ffffff',
-  backgroundGradientFrom: '#6a11cb',
-  backgroundGradientTo: '#2575fc',
+  backgroundGradientFrom: '#6C9A8B',
+  backgroundGradientTo: '#2A5866',
   decimalPlaces: 0,
   color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`, // White text
   labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`, // White labels

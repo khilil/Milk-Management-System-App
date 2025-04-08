@@ -1,21 +1,51 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {NavigationContainer} from '@react-navigation/native';
 import HomeScreen from './Page/superAdmin/Home';
 import Coustomer from './Page/superAdmin/coustomer/Coustomer';
 import CustomerListScreen from './Page/superAdmin/coustomer/CustomerListScreen ';
 import CustomerDetailScreen from './Page/superAdmin/coustomer/CustomerDetailScreen';
-import AddSeller from './Page/superAdmin/seller/addSeller';
+import AddSeller from './Page/superAdmin/Seller/addSeller';
 import PaymentScreen from './Page/superAdmin/Payments/Payments';
 import MonthlyReports from './Page/superAdmin/Monthly Reports/monthlyReports';
+import MilkAssigning from './Page/superAdmin/Milk Assigning/MilkAssigning';
+import SellerDetails from './Page/superAdmin/Seller/SellerDetails';
+import LoginScreen from './Login/Login';
+import SellerDashboard from './Page/Seller Screen/SellerDashboard';
+import CustomerDashboard from './Page/Customer Screen/CustomerDashboard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 const Stack = createNativeStackNavigator();
 
+
+
 export default function App() {
+  const [initialRoute, setInitialRoute] = useState(null);
+
+  useEffect(() => {
+    const checkLogin = async () => {
+      const role = await AsyncStorage.getItem('userRole');
+      if (role === 'admin') setInitialRoute('Home');
+      else if (role === 'seller') setInitialRoute('SellerDashboard');
+      else if (role === 'customer') setInitialRoute('CustomerDashboard');
+      else setInitialRoute('Login');
+    };
+
+    checkLogin();
+  }, []);
+
+if (initialRoute === null) return null; // Optional: splash loading
+
+
   return (
     <NavigationContainer>
-      <Stack.Navigator>
+      <Stack.Navigator initialRouteName={initialRoute}>
+      <Stack.Screen name="Login" component={LoginScreen} />
+        {/* <Stack.Screen name="Home" component={HomeScreen} /> */}
+        <Stack.Screen name="SellerDashboard" component={SellerDashboard} />
+        <Stack.Screen name="CustomerDashboard" component={CustomerDashboard} />
+
         <Stack.Screen
           name="Home"
           component={HomeScreen}
@@ -105,7 +135,7 @@ export default function App() {
             },
           }}
         />
-        
+
         <Stack.Screen
           name="Payments"
           component={PaymentScreen}
@@ -122,7 +152,7 @@ export default function App() {
               letterSpacing: 1,
             },
           }}
-        /> 
+        />
 
         <Stack.Screen
           name="MonthlyReports"
@@ -142,6 +172,41 @@ export default function App() {
           }}
         />
 
+        <Stack.Screen
+          name="MilkAssigning"
+          component={MilkAssigning}
+          options={{
+            title: 'Customer List',
+            headerStyle: {
+              backgroundColor: '#2A5866',
+              elevation: 4,
+            },
+            headerTintColor: '#FFFFFF',
+            headerTitleStyle: {
+              fontSize: 20,
+              fontWeight: '600',
+              letterSpacing: 1,
+            },
+          }}
+        />
+
+        <Stack.Screen
+          name="seller details"
+          component={SellerDetails}
+          options={{
+            title: 'Customer List',
+            headerStyle: {
+              backgroundColor: '#2A5866',
+              elevation: 4,
+            },
+            headerTintColor: '#FFFFFF',
+            headerTitleStyle: {
+              fontSize: 20,
+              fontWeight: '600',
+              letterSpacing: 1,
+            },
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

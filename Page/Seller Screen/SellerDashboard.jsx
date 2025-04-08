@@ -8,17 +8,17 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const features = [
   { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Coustomer'  },
-  { id: '2', name: 'Add Seller', icon: 'account-group', color: '#e67e22', screen: 'AddSeller' },
+  // { id: '2', name: 'Add Seller', icon: 'account-group', color: '#e67e22', screen: 'AddSeller' },
   { id: '3', name: 'Milk Distribution', icon: 'cup-water', color: '#2ecc71' ,screen: 'CustomerList'},
   { id: '4', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments'},
-  { id: '5', name: 'Daily Reports', icon: 'chart-bar', color: '#1abc9c', screen: 'MonthlyReports' },
+  // { id: '5', name: 'Daily Reports', icon: 'chart-bar', color: '#1abc9c', screen: 'MonthlyReports' },
   { id: '6', name: 'Milk Assiging', icon: 'history', color: '#e74c3c', screen: 'MilkAssigning' },
-  { id: '7', name: 'Seller Details', icon: 'bell', color: '#f1c40f', screen: 'seller details' },
+  // { id: '7', name: 'Seller Details', icon: 'bell', color: '#f1c40f', screen: 'seller details' },
   { id: '8', name: 'Customer Feedback', icon: 'message-text', color: '#34495e' },
   { id: '9', name: 'Settings', icon: 'cog', color: '#7f8c8d' },
 ];
 // HomeScreen.js - Enhanced with more details
-export default function HomeScreen() {
+export default function SellerDashboard() {
   const navigation = useNavigation();
 
   useLayoutEffect(() => {
@@ -31,7 +31,7 @@ export default function HomeScreen() {
           <Ionicons name="log-out-outline" size={24} color="#fff" />
         </TouchableOpacity>
       ),
-      title: 'Admin Dashboard',
+      title: 'Seller Dashboard',
       headerStyle: {
         backgroundColor: '#2A5866',
       },
@@ -48,7 +48,7 @@ export default function HomeScreen() {
         {/* Header Section */}
         <View style={styles.headerContainer}>
           <View style={styles.userInfo}>
-            <Text style={styles.greeting}>Good Morning, Admin!</Text>
+            <Text style={styles.greeting}>Good Morning, Seller!</Text>
             <Text style={styles.stats}>Today's Distribution: 1500 L</Text>
           </View>
           <TouchableOpacity style={styles.profileButton}>
