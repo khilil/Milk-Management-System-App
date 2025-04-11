@@ -14,6 +14,8 @@ import LoginScreen from './Login/Login';
 import SellerDashboard from './Page/Seller Screen/SellerDashboard';
 import CustomerDashboard from './Page/Customer Screen/CustomerDashboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Settings } from 'react-native';
+import SettingScreen from './Page/Seller Screen/Settings/SettingScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -42,9 +44,9 @@ if (initialRoute === null) return null; // Optional: splash loading
     <NavigationContainer>
       <Stack.Navigator initialRouteName={initialRoute}>
       <Stack.Screen name="Login" component={LoginScreen} />
-        {/* <Stack.Screen name="Home" component={HomeScreen} /> */}
         <Stack.Screen name="SellerDashboard" component={SellerDashboard} />
         <Stack.Screen name="CustomerDashboard" component={CustomerDashboard} />
+        <Stack.Screen name="Setting" component={SettingScreen} />
 
         <Stack.Screen
           name="Home"

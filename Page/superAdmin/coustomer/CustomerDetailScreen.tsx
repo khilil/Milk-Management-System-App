@@ -7,6 +7,7 @@ import RNFS from 'react-native-fs';
 import { PermissionsAndroid } from 'react-native';
 import { print } from 'react-native-print';
 
+
 const CustomerDetailScreen = ({ route }) => {
   const { customer, isAdmin = false } = route.params;
   const [milkRecords, setMilkRecords] = useState([]);
