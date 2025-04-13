@@ -15,7 +15,7 @@ const features = [
   { id: '6', name: 'Milk Assiging', icon: 'history', color: '#e74c3c', screen: 'MilkAssigning' },
   // { id: '7', name: 'Seller Details', icon: 'bell', color: '#f1c40f', screen: 'seller details' },
   { id: '8', name: 'Customer Feedback', icon: 'message-text', color: '#34495e' },
-  { id: '9', name: 'Settings', icon: 'cog', color: '#7f8c8d', screen: "Setting" },
+  { id: '9', name: 'Settings ', icon: 'cog', color: '#7f8c8d', screen: "Setting" },
 ];
 // HomeScreen.js - Enhanced with more details
 export default function SellerDashboard() {

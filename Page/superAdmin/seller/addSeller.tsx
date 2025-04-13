@@ -1,207 +1,152 @@
-import React, {useState, useEffect} from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-  Alert,
-} from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import LinearGradient from 'react-native-linear-gradient';
-import NetInfo from '@react-native-community/netinfo'; // Import NetInfo
+import NetInfo from '@react-native-community/netinfo';
 import styles from '../../../css/styles';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { addSeller } from '../../../database-connect/admin/seller/addSeller';
 
 const AddSeller = () => {
   const [formData, setFormData] = useState({
     username: '',
-    email: '',
     phone: '',
     password: '',
-    address: '',
-    milkQuantity: '',
-    startDate: new Date(),
+    vehicleNo: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const handleInputChange = (name, value) => {
-    setFormData({...formData, [name]: value});
+  const validateForm = () => {
+    if (!formData.username.trim()) {
+      Alert.alert('Error', 'Username is required');
+      return false;
+    }
+    if (!formData.phone.trim() || !/^\d{10}$/.test(formData.phone)) {
+      Alert.alert('Error', 'Valid 10-digit phone number is required');
+      return false;
+    }
+    if (!formData.password.trim() || formData.password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return false;
+    }
+    if (!formData.vehicleNo.trim() || !/^[A-Za-z0-9\s\-]{1,20}$/.test(formData.vehicleNo)) {
+      Alert.alert('Error', 'Valid vehicle number is required');
+      return false;
+    }
+    return true;
   };
 
-  const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(Platform.OS === 'ios'); // Keep open on iOS, close on Android
-    if (selectedDate) {
-      setFormData({...formData, startDate: selectedDate});
-    }
+  const handleInputChange = (name, value) => {
+    setFormData({ ...formData, [name]: value });
   };
 
   const handleSubmit = async () => {
-    // Check network connection type
+    if (!validateForm()) return;
+    setIsSubmitting(true);
+
     const state = await NetInfo.fetch();
+    const submitForm = async () => {
+      try {
+        const payload = {
+          Name: formData.username,
+          Contact: formData.phone,
+          Password: formData.password,
+          Vehicle_no: formData.vehicleNo,
+        };
+
+        const response = await addSeller(payload);
+        
+        if (response.status === 'success') {
+          Alert.alert('Success', 'Seller added successfully');
+          setFormData({
+            username: '',
+            phone: '',
+            password: '',
+            vehicleNo: '',
+          });
+        } else {
+          Alert.alert('Error', response.message || 'Failed to add seller');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to connect to server. Please try again.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
     if (state.type === 'cellular') {
-      // Show mobile data alert
       Alert.alert(
         'Mobile Data Alert',
-        'You are currently using mobile data. Submitting the form may consume data. Do you want to continue?',
+        'You are using mobile data. Submitting the form may consume data. Continue?',
         [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Continue',
-            onPress: () => {
-              // Format the date before logging
-              const formattedDate = formData.startDate
-                .toISOString()
-                .split('T')[0];
-              console.log('Form Data:', {
-                ...formData,
-                startDate: formattedDate, // Log the formatted date
-              });
-              // Add your form submission logic here
-            },
-          },
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Continue', onPress: submitForm },
         ],
-        {cancelable: false},
+        { cancelable: false }
       );
     } else {
-      // Format the date before logging
-      const formattedDate = formData.startDate.toISOString().split('T')[0];
-      console.log('Form Data:', {
-        ...formData,
-        startDate: formattedDate, // Log the formatted date
-      });
-      // Add your form submission logic here
+      submitForm();
     }
   };
+
   return (
     <LinearGradient colors={['#F8F9FB', '#FFFFFF']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.formContainer}>
-        {/* Form Title */}
         <Text style={styles.formTitle}>Add Seller</Text>
 
-        {/* Username */}
         <View style={styles.inputContainer}>
-          <Icon
-            name="account"
-            size={20}
-            color="#2A5866"
-            style={styles.inputIcon}
-          />
+          <Icon name="account" size={20} color="#2A5866" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
             placeholder="Username"
             value={formData.username}
-            onChangeText={text => handleInputChange('username', text)}
+            onChangeText={(text) => handleInputChange('username', text)}
           />
         </View>
 
-        {/* Phone */}
         <View style={styles.inputContainer}>
-          <Icon
-            name="phone"
-            size={20}
-            color="#2A5866"
-            style={styles.inputIcon}
-          />
+          <Icon name="phone" size={20} color="#2A5866" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
             placeholder="Phone"
             keyboardType="phone-pad"
             value={formData.phone}
-            onChangeText={text => handleInputChange('phone', text)}
+            onChangeText={(text) => handleInputChange('phone', text)}
           />
         </View>
 
-        {/* Password */}
         <View style={styles.inputContainer}>
-          <Icon
-            name="lock"
-            size={20}
-            color="#2A5866"
-            style={styles.inputIcon}
-          />
+          <Icon name="lock" size={20} color="#2A5866" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
             placeholder="Password"
             secureTextEntry
             value={formData.password}
-            onChangeText={text => handleInputChange('password', text)}
+            onChangeText={(text) => handleInputChange('password', text)}
           />
         </View>
 
-        {/* Address */}
         <View style={styles.inputContainer}>
-          <Icon
-            name="map-marker"
-            size={20}
-            color="#2A5866"
-            style={styles.inputIcon}
-          />
+          <Icon name="motorbike" size={20} color="#2A5866" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Address"
-            value={formData.address}
-            onChangeText={text => handleInputChange('address', text)}
+            placeholder="Vehicle Number"
+            value={formData.vehicleNo}
+            onChangeText={(text) => handleInputChange('vehicleNo', text)}
           />
         </View>
 
-        {/* Bike Number */}
-        <View style={styles.inputContainer}>
-          <MaterialCommunityIcons
-            name="motorbike" // Updated icon name
-            size={20}
-            color="#2A5866"
-            style={styles.inputIcon}
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Bike Number"
-            value={formData.address}
-            onChangeText={text => handleInputChange('address', text)}
-          />
-        </View>
-
-        {/* Milk Quantity */}
-        <View style={styles.inputContainer}>
-          <Icon
-            name="cup-water"
-            size={20}
-            color="#2A5866"
-            style={styles.inputIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Milk Quantity (L)"
-            keyboardType="numeric"
-            value={formData.milkQuantity}
-            onChangeText={text => handleInputChange('milkQuantity', text)}
-          />
-        </View>
-
-        {/* Start Date
-        <TouchableOpacity
-          style={styles.inputContainer}
-          onPress={() => setShowDatePicker(true)}
+        <TouchableOpacity 
+          style={[styles.submitButton, isSubmitting && { opacity: 0.6 }]} 
+          onPress={handleSubmit}
+          disabled={isSubmitting}
         >
-          <Icon name="calendar" size={20} color="#2A5866" style={styles.inputIcon} />
-          <Text style={styles.dateText}>
-            {formData.startDate.toLocaleDateString()}
-          </Text>
-        </TouchableOpacity> */}
-
-        {/* Submit Button */}
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
           <LinearGradient
             colors={['#2A5866', '#6C9A8B']}
-            style={styles.gradientButton}>
-            <Text style={styles.submitButtonText}>Add Seller</Text>
+            style={styles.gradientButton}
+          >
+            <Text style={styles.submitButtonText}>
+              {isSubmitting ? 'Adding...' : 'Add Seller'}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>

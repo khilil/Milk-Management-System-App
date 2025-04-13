@@ -3,70 +3,95 @@ import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert } 
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import axios from 'axios';
 
-const SellerDetails  = () => {
-  const navigation = useNavigation(); // Hook to get navigation object
-  const [customers, setCustomers] = useState([]);
+const SellerDetails = () => {
+  const navigation = useNavigation();
+  const [sellers, setSellers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredCustomers, setFilteredCustomers] = useState([]);
-  const [visibleCustomers, setVisibleCustomers] = useState([]);
-  const [totalDistribution, setTotalDistribution] = useState(0);
-  const [totalMoney, setTotalMoney] = useState(0);
+  const [filteredSellers, setFilteredSellers] = useState([]);
+  const [visibleSellers, setVisibleSellers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 7;
 
-  const realCustomers = [
-    { id: '1', username: 'Rahul Sharma', phone: '9876543210', address: 'Delhi, India', milkQuantity: '10 L', startDate: '2024-01-10', money: 500 },
-    { id: '2', username: 'Priya Mehta', phone: '9865321470', address: 'Mumbai, India', milkQuantity: '15 L', startDate: '2024-02-05', money: 750 },
-    { id: '3', username: 'Amit Verma', phone: '9854123698', address: 'Bangalore, India', milkQuantity: '12 L', startDate: '2024-03-20', money: 600 },
-    { id: '4', username: 'Sneha Kapoor', phone: '9786541230', address: 'Pune, India', milkQuantity: '8 L', startDate: '2024-04-15', money: 400 },
-    { id: '5', username: 'Vikram Singh', phone: '9765432109', address: 'Chennai, India', milkQuantity: '20 L', startDate: '2024-05-10', money: 1000 },
-    { id: '6', username: 'Ananya Bose', phone: '9745213698', address: 'Kolkata, India', milkQuantity: '18 L', startDate: '2024-06-05', money: 900 },
-    { id: '7', username: 'Rohan Nair', phone: '9732146589', address: 'Hyderabad, India', milkQuantity: '9 L', startDate: '2024-07-20', money: 450 },
-    { id: '8', username: 'Neha Gupta', phone: '9723154896', address: 'Ahmedabad, India', milkQuantity: '14 L', startDate: '2024-08-15', money: 700 },
-    { id: '9', username: 'Kunal Malhotra', phone: '9712354876', address: 'Jaipur, India', milkQuantity: '11 L', startDate: '2024-09-10', money: 550 },
-    { id: '10', username: 'Ritika Chawla', phone: '9701245789', address: 'Lucknow, India', milkQuantity: '16 L', startDate: '2024-10-05', money: 800 },
-    { id: '10', username: 'Ritika Chawla', phone: '9701245789', address: 'Lucknow, India', milkQuantity: '16 L', startDate: '2024-10-05', money: 800 },
-  ];
-
   useEffect(() => {
-    setCustomers(realCustomers);
-    const totalMilk = realCustomers.reduce((sum, c) => sum + parseFloat(c.milkQuantity), 0);
-    const totalAmount = realCustomers.reduce((sum, c) => sum + c.money, 0);
-    setTotalDistribution(totalMilk);
-    setTotalMoney(totalAmount);
-    setFilteredCustomers(realCustomers);
-    updateVisibleCustomers(realCustomers, 1);
+    const fetchSellers = async () => {
+      try {
+        const response = await axios.get('http://192.168.194.171/milk_dist_system/seller/seller.php', {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 5000,
+        });
+        console.log('Fetch Sellers Response:', response.data);
+        if (Array.isArray(response.data)) {
+          const formattedSellers = response.data.map(seller => ({
+            id: seller.Seller_id.toString(),
+            username: seller.Name,
+            phone: seller.Contact,
+            vehicleNo: seller.Vehicle_no,
+          }));
+          setSellers(formattedSellers);
+          setFilteredSellers(formattedSellers);
+          updateVisibleSellers(formattedSellers, 1);
+        } else {
+          Alert.alert('Error', response.data.message || 'Failed to load sellers');
+        }
+      } catch (error) {
+        console.error('Fetch Sellers Error:', error);
+        Alert.alert('Error', 'Failed to connect to server');
+      }
+    };
+    fetchSellers();
   }, []);
 
   useEffect(() => {
-    const filtered = customers.filter(
-      (customer) =>
-        customer.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        customer.phone.includes(searchQuery)
+    const filtered = sellers.filter(
+      (seller) =>
+        seller.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        seller.phone.includes(searchQuery)
     );
-    setFilteredCustomers(filtered);
+    setFilteredSellers(filtered);
     setCurrentPage(1);
-    updateVisibleCustomers(filtered, 1);
-  }, [searchQuery, customers]);
+    updateVisibleSellers(filtered, 1);
+  }, [searchQuery, sellers]);
 
-  const updateVisibleCustomers = (filtered, page) => {
+  const updateVisibleSellers = (filtered, page) => {
     const startIndex = (page - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    setVisibleCustomers(filtered.slice(startIndex, endIndex));
+    setVisibleSellers(filtered.slice(startIndex, endIndex));
   };
 
   const handleDelete = (id) => {
     Alert.alert(
-      'Delete Customer',
-      'Are you sure you want to delete this customer?',
+      'Delete Seller',
+      'Are you sure you want to delete this seller?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
-          onPress: () => {
-            const updatedCustomers = customers.filter((customer) => customer.id !== id);
-            setCustomers(updatedCustomers);
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await axios.delete('http://192.168.194.171/milk_dist_system/seller/seller.php', {
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                data: { Seller_id: id },
+              });
+              if (response.data.status === 'success') {
+                const updatedSellers = sellers.filter((seller) => seller.id !== id);
+                setSellers(updatedSellers);
+                setFilteredSellers(updatedSellers);
+                updateVisibleSellers(updatedSellers, currentPage);
+                Alert.alert('Success', 'Seller deleted successfully');
+              } else {
+                Alert.alert('Error', response.data.message || 'Failed to delete seller');
+              }
+            } catch (error) {
+              console.error('Delete Seller Error:', error);
+              Alert.alert('Error', 'Failed to connect to server');
+            }
           },
         },
       ],
@@ -74,16 +99,16 @@ const SellerDetails  = () => {
     );
   };
 
-  const handleEdit = (customer) => {
-    navigation.navigate('EditCustomer', { customer });
+  const handleEdit = (seller) => {
+    navigation.navigate('EditSeller', { seller });
   };
 
-  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredSellers.length / itemsPerPage);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
-      updateVisibleCustomers(filteredCustomers, newPage);
+      updateVisibleSellers(filteredSellers, newPage);
     }
   };
 
@@ -91,31 +116,29 @@ const SellerDetails  = () => {
     <View style={styles.tableHeader}>
       <Text style={[styles.headerCell, { flex: 2 }]}>Name</Text>
       <Text style={[styles.headerCell, { flex: 2 }]}>Phone</Text>
-      <Text style={[styles.headerCell, { flex: 1 }]}>Milk</Text>
-      <Text style={[styles.headerCell, { flex: 1 }]}>Money</Text>
+      <Text style={[styles.headerCell, { flex: 2 }]}>Vehicle No</Text>
       <Text style={[styles.headerCell, { flex: 1 }]}>Actions</Text>
     </View>
   );
 
-  const renderCustomerItem = ({ item }) => (
+  const renderSellerItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.tableRow}
-      onPress={() => navigation.navigate('CustomerDetail', { customer: item, isAdmin: true })}
+      onPress={() => navigation.navigate('SellerDetail', { seller: item, isAdmin: true })}
     >
       <Text style={[styles.cell, { flex: 2 }]}>{item.username}</Text>
       <Text style={[styles.cell, { flex: 2 }]}>{item.phone}</Text>
-      <Text style={[styles.cell, { flex: 1 }]}>{item.milkQuantity}</Text>
-      <Text style={[styles.cell, { flex: 1 }]}>₹{item.money}</Text>
+      <Text style={[styles.cell, { flex: 2 }]}>{item.vehicleNo}</Text>
       <View style={[styles.cell, styles.actionCell, { flex: 1 }]}>
         <TouchableOpacity onPress={(e) => {
-          e.stopPropagation(); // Prevent row click when clicking edit
+          e.stopPropagation();
           handleEdit(item);
         }}>
           <Icon name="pencil" size={20} color="#4CAF50" />
         </TouchableOpacity>
         <TouchableOpacity 
           onPress={(e) => {
-            e.stopPropagation(); // Prevent row click when clicking delete
+            e.stopPropagation();
             handleDelete(item.id);
           }} 
           style={styles.deleteButton}
@@ -185,17 +208,7 @@ const SellerDetails  = () => {
   return (
     <LinearGradient colors={['#E6F0FA', '#FFFFFF']} style={styles.container}>
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Seller Details </Text>
-        {/* <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{totalDistribution} L</Text>
-            <Text style={styles.statLabel}>Total Milk</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>₹{totalMoney}</Text>
-            <Text style={styles.statLabel}>Total Revenue</Text>
-          </View>
-        </View> */}
+        <Text style={styles.headerTitle}>Seller Details</Text>
       </View>
 
       <View style={styles.searchContainer}>
@@ -211,12 +224,12 @@ const SellerDetails  = () => {
       <View style={styles.tableContainer}>
         {renderHeader()}
         <FlatList
-          data={visibleCustomers}
+          data={visibleSellers}
           keyExtractor={(item) => item.id}
-          renderItem={renderCustomerItem}
-          ListEmptyComponent={<Text style={styles.emptyText}>No customers found</Text>}
+          renderItem={renderSellerItem}
+          ListEmptyComponent={<Text style={styles.emptyText}>No sellers found</Text>}
         />
-        {filteredCustomers.length > 0 && renderPagination()}
+        {filteredSellers.length > 0 && renderPagination()}
       </View>
     </LinearGradient>
   );
@@ -235,27 +248,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2A5866',
     marginBottom: 10,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statBox: {
-    backgroundColor: '#fff',
-    padding: 10,
-    borderRadius: 8,
-    width: '48%',
-    alignItems: 'center',
-    elevation: 2,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2A5866',
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#666',
   },
   searchContainer: {
     flexDirection: 'row',

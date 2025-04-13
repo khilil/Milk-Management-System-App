@@ -1,13 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  TextInput,
-  Alert,
-} from 'react-native';
+import { View,Text,FlatList,TouchableOpacity,StyleSheet,TextInput,Alert } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import XLSX from 'xlsx';
@@ -15,7 +7,7 @@ import RNFS from 'react-native-fs';
 import {PermissionsAndroid} from 'react-native';
 import {print} from 'react-native-print';
 import {useNavigation} from '@react-navigation/native';
-import { useLayoutEffect } from 'react';
+import {useLayoutEffect} from 'react';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Coustomer from '../superAdmin/coustomer/Coustomer';
 
@@ -37,7 +29,7 @@ const CoustomerDashboard = ({route}) => {
       headerTitle: 'Customer Dashboard',
       headerRight: () => (
         <TouchableOpacity onPress={handleLogout} style={{marginRight: 15}}>
-           <Ionicons name="log-out-outline" size={24} color="#fff" />
+          <Ionicons name="log-out-outline" size={24} color="#fff" />
         </TouchableOpacity>
       ),
       headerStyle: {
@@ -157,24 +149,19 @@ const CoustomerDashboard = ({route}) => {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      "Confirm Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Logout",
-          onPress: () => {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
-          },  
+    Alert.alert('Confirm Logout', 'Are you sure you want to logout?', [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Logout',
+        onPress: () => {
+          navigation.reset({
+            index: 0,
+            routes: [{name: 'Login'}],
+          });
         },
-      ]
-    );
+      },
+    ]);
   };
-  
 
   const renderMilkRecord = ({item}) => (
     <View style={styles.recordRow}>

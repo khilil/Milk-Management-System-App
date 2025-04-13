@@ -3,46 +3,27 @@ import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert } 
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import fetchCustomers from '../../../database-connect/admin/customer/Featch'; // Updated import path
 
 const CustomerListScreen = () => {
-  const navigation = useNavigation(); // Hook to get navigation object
+  const navigation = useNavigation();
   const [customers, setCustomers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [visibleCustomers, setVisibleCustomers] = useState([]);
-  const [totalDistribution, setTotalDistribution] = useState(0);
   const [totalMoney, setTotalMoney] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  const realCustomers = [
-    { id: '1', username: 'Rahul Sharma', phone: '9876543210', address: 'Delhi, India', milkQuantity: '10 L', startDate: '2024-01-10', money: 500 },
-    { id: '2', username: 'Priya Mehta', phone: '9865321470', address: 'Mumbai, India', milkQuantity: '15 L', startDate: '2024-02-05', money: 750 },
-    { id: '3', username: 'Amit Verma', phone: '9854123698', address: 'Bangalore, India', milkQuantity: '12 L', startDate: '2024-03-20', money: 600 },
-    { id: '4', username: 'Sneha Kapoor', phone: '9786541230', address: 'Pune, India', milkQuantity: '8 L', startDate: '2024-04-15', money: 400 },
-    { id: '5', username: 'Vikram Singh', phone: '9765432109', address: 'Chennai, India', milkQuantity: '20 L', startDate: '2024-05-10', money: 1000 },
-    { id: '6', username: 'Ananya Bose', phone: '9745213698', address: 'Kolkata, India', milkQuantity: '18 L', startDate: '2024-06-05', money: 900 },
-    { id: '7', username: 'Rohan Nair', phone: '9732146589', address: 'Hyderabad, India', milkQuantity: '9 L', startDate: '2024-07-20', money: 450 },
-    { id: '8', username: 'Neha Gupta', phone: '9723154896', address: 'Ahmedabad, India', milkQuantity: '14 L', startDate: '2024-08-15', money: 700 },
-    { id: '9', username: 'Kunal Malhotra', phone: '9712354876', address: 'Jaipur, India', milkQuantity: '11 L', startDate: '2024-09-10', money: 550 },
-    { id: '10', username: 'Ritika Chawla', phone: '9701245789', address: 'Lucknow, India', milkQuantity: '16 L', startDate: '2024-10-05', money: 800 },
-  ];
-
   useEffect(() => {
-    setCustomers(realCustomers);
-    const totalMilk = realCustomers.reduce((sum, c) => sum + parseFloat(c.milkQuantity), 0);
-    const totalAmount = realCustomers.reduce((sum, c) => sum + c.money, 0);
-    setTotalDistribution(totalMilk);
-    setTotalMoney(totalAmount);
-    setFilteredCustomers(realCustomers);
-    updateVisibleCustomers(realCustomers, 1);
-  }, []);
+    fetchCustomers(setCustomers, setTotalMoney, setFilteredCustomers, updateVisibleCustomers);
+  }, [fetchCustomers]);
 
   useEffect(() => {
     const filtered = customers.filter(
       (customer) =>
-        customer.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        customer.phone.includes(searchQuery)
+        (customer.username?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+        (customer.phone || '').includes(searchQuery)
     );
     setFilteredCustomers(filtered);
     setCurrentPage(1);
@@ -55,7 +36,7 @@ const CustomerListScreen = () => {
     setVisibleCustomers(filtered.slice(startIndex, endIndex));
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     Alert.alert(
       'Delete Customer',
       'Are you sure you want to delete this customer?',
@@ -63,9 +44,18 @@ const CustomerListScreen = () => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
-          onPress: () => {
-            const updatedCustomers = customers.filter((customer) => customer.id !== id);
-            setCustomers(updatedCustomers);
+          onPress: async () => {
+            try {
+         
+              const updatedCustomers = customers.filter((customer) => customer.id !== id);
+              setCustomers(updatedCustomers);
+              setFilteredCustomers(updatedCustomers);
+              updateVisibleCustomers(updatedCustomers, 1);
+              Alert.alert('Success', 'Customer deleted successfully');
+            } catch (error) {
+              console.error('Error deleting customer:', error);
+              Alert.alert('Error', 'Failed to delete customer');
+            }
           },
         },
       ],
@@ -97,26 +87,28 @@ const CustomerListScreen = () => {
   );
 
   const renderCustomerItem = ({ item }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.tableRow}
       onPress={() => navigation.navigate('CustomerDetail', { customer: item, isAdmin: true })}
     >
       <Text style={[styles.cell, { flex: 2 }]}>{item.username}</Text>
       <Text style={[styles.cell, { flex: 2 }]}>{item.phone}</Text>
       <Text style={[styles.cell, { flex: 1 }]}>{item.milkQuantity}</Text>
-      <Text style={[styles.cell, { flex: 1 }]}>₹{item.money}</Text>
+      <Text style={[styles.cell, { flex: 1 }]}>₹{item.money.toFixed(2)}</Text>
       <View style={[styles.cell, styles.actionCell, { flex: 1 }]}>
-        <TouchableOpacity onPress={(e) => {
-          e.stopPropagation(); // Prevent row click when clicking edit
-          handleEdit(item);
-        }}>
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            handleEdit(item);
+          }}
+        >
           <Icon name="pencil" size={20} color="#4CAF50" />
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={(e) => {
-            e.stopPropagation(); // Prevent row click when clicking delete
+            e.stopPropagation();
             handleDelete(item.id);
-          }} 
+          }}
           style={styles.deleteButton}
         >
           <Icon name="delete" size={20} color="#FF4444" />
@@ -134,7 +126,7 @@ const CustomerListScreen = () => {
       >
         <Icon name="chevron-double-left" size={24} color={currentPage === 1 ? '#ccc' : '#fff'} />
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={[styles.navButton, currentPage === 1 && styles.disabledButton]}
         onPress={() => handlePageChange(currentPage - 1)}
@@ -145,12 +137,13 @@ const CustomerListScreen = () => {
 
       <View style={styles.pageNumbers}>
         {Array.from({ length: totalPages }, (_, i) => i + 1)
-          .filter(page => 
-            page === 1 || 
-            page === totalPages || 
-            (page >= currentPage - 1 && page <= currentPage + 1)
+          .filter(
+            (page) =>
+              page === 1 ||
+              page === totalPages ||
+              (page >= currentPage - 1 && page <= currentPage + 1)
           )
-          .map(page => (
+          .map((page) => (
             <TouchableOpacity
               key={page}
               style={[styles.pageButton, currentPage === page && styles.activePageButton]}
@@ -187,16 +180,15 @@ const CustomerListScreen = () => {
         <Text style={styles.headerTitle}>Customer Dashboard</Text>
         <View style={styles.statsContainer}>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>{totalDistribution} L</Text>
+            <Text style={styles.statValue}>N/A</Text>
             <Text style={styles.statLabel}>Total Milk</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>₹{totalMoney}</Text>
+            <Text style={styles.statValue}>₹{totalMoney.toFixed(2)}</Text>
             <Text style={styles.statLabel}>Total Revenue</Text>
           </View>
         </View>
       </View>
-
       <View style={styles.searchContainer}>
         <Icon name="magnify" size={24} color="#666" style={styles.searchIcon} />
         <TextInput
@@ -211,7 +203,7 @@ const CustomerListScreen = () => {
         {renderHeader()}
         <FlatList
           data={visibleCustomers}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id.toString()}
           renderItem={renderCustomerItem}
           ListEmptyComponent={<Text style={styles.emptyText}>No customers found</Text>}
         />
