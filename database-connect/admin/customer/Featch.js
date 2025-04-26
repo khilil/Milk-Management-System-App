@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 
 const fetchCustomers = async (setCustomers, setTotalMoney, setFilteredCustomers, updateVisibleCustomers) => {
   try {
-    const response = await axios.get('http://192.168.194.171/milk_dist_system/customer/customer.php', {
+    const response = await axios.get('http://192.168.235.171/milk_dist_system/customer/customer.php', {
       timeout: 5000 // Add timeout to prevent hanging
     });
     const data = response.data;

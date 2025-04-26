@@ -5,17 +5,20 @@ import HomeScreen from './Page/superAdmin/Home';
 import Coustomer from './Page/superAdmin/coustomer/Coustomer';
 import CustomerListScreen from './Page/superAdmin/coustomer/CustomerListScreen ';
 import CustomerDetailScreen from './Page/superAdmin/coustomer/CustomerDetailScreen';
-import AddSeller from './Page/superAdmin/Seller/addSeller';
+// import AddSeller from './Page/superAdmin/Seller/addSeller';
 import PaymentScreen from './Page/superAdmin/Payments/Payments';
 import MonthlyReports from './Page/superAdmin/Monthly Reports/monthlyReports';
 import MilkAssigning from './Page/superAdmin/Milk Assigning/MilkAssigning';
-import SellerDetails from './Page/superAdmin/Seller/SellerDetails';
+// import SellerDetails from './Page/superAdmin/Seller/SellerDetails';
 import LoginScreen from './Login/Login';
 import SellerDashboard from './Page/Seller Screen/SellerDashboard';
 import CustomerDashboard from './Page/Customer Screen/CustomerDashboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Settings } from 'react-native';
-import SettingScreen from './Page/Seller Screen/Settings/SettingScreen';
+import SettingScreen from './Page/Seller Screen/Settings/MilkSelling';
+import AddSeller from './Page/superAdmin/seller/addSeller';
+import SellerDetails from './Page/superAdmin/seller/SellerDetails';
+import MilkSelling from './Page/Seller Screen/Settings/MilkSelling';
 
 
 const Stack = createNativeStackNavigator();
@@ -46,7 +49,7 @@ if (initialRoute === null) return null; // Optional: splash loading
       <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SellerDashboard" component={SellerDashboard} />
         <Stack.Screen name="CustomerDashboard" component={CustomerDashboard} />
-        <Stack.Screen name="Setting" component={SettingScreen} />
+        <Stack.Screen name="Milk selling" component={MilkSelling} />
 
         <Stack.Screen
           name="Home"
@@ -209,6 +212,7 @@ if (initialRoute === null) return null; // Optional: splash loading
             },
           }}
         />
+
       </Stack.Navigator>
     </NavigationContainer>
   );

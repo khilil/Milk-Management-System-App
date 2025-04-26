@@ -1,10 +1,10 @@
 import axios from 'axios';
 
-const API_URL = 'http://192.168.194.171/milk_dist_system/admin/milk_assignment.php';
+const API_URL = 'http://192.168.235.171/milk_dist_system/admin/milk_assignment.php';
 
 export const fetchSellers = async () => {
   try {
-    const response = await axios.get('http://192.168.194.171/milk_dist_system/seller/seller.php', {
+    const response = await axios.get('http://192.168.235.171/milk_dist_system/seller/seller.php', {
       headers: {
         'Content-Type': 'application/json',
       },

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://192.168.194.171/milk_dist_system/seller/seller.php';
+const API_URL = 'http://192.168.235.171/milk_dist_system/seller/seller.php';
 
 export const addSeller = async (sellerData) => {
   try {
