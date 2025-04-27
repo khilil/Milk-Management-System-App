@@ -37,7 +37,7 @@ const MilkSelling = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const id = '4'; // Hardcoded for testing
+        const id = '3'; // Hardcoded for testing
         if (id) setSellerId(parseInt(id));
         else throw new Error('Seller ID not found');
 

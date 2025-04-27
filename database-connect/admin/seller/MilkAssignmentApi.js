@@ -1,10 +1,11 @@
 import axios from 'axios';
+import { API_CONFIG } from '../../Apichange';
 
-const API_URL = 'http://192.168.235.171/milk_dist_system/admin/milk_assignment.php';
+const API_URL = API_CONFIG.milkApi;
 
 export const fetchSellers = async () => {
   try {
-    const response = await axios.get('http://192.168.235.171/milk_dist_system/seller/seller.php', {
+    const response = await axios.get(API_CONFIG.milkApi2, {
       headers: {
         'Content-Type': 'application/json',
       },

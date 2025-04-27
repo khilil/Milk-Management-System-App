@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_CONFIG } from '../../Apichange';
 
-const API_URL = 'http://192.168.235.171/milk_dist_system/seller/seller.php';
+const API_URL = API_CONFIG.addSellerApi;
 
 export const addSeller = async (sellerData) => {
   try {
