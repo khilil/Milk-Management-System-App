@@ -8,9 +8,9 @@ import {
   Platform,
   ActivityIndicator,
   SafeAreaView,
+  TextInput,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import LinearGradient from 'react-native-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
@@ -18,32 +18,39 @@ import { fetchDistributionDetails, fetchTotalDistributed } from '../../../databa
 
 const CoustomerMilkAssingDataList = () => {
   const navigation = useNavigation();
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [date, setDate] = useState('2025-04-27');
+  const [selectedDate, setSelectedDate] = useState(new Date('2025-04-27'));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [distributions, setDistributions] = useState([]);
+  const [filteredDistributions, setFilteredDistributions] = useState([]);
   const [totalDistributed, setTotalDistributed] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showAllDates, setShowAllDates] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCards, setExpandedCards] = useState({});
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
+  const sellerId = 3;
 
-  // Fetch data when date changes or when toggling all dates
+  // Fetch data
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       try {
         const [distData, totalData] = await Promise.all([
-          fetchDistributionDetails(showAllDates ? '' : date),
-          showAllDates ? Promise.resolve({ total_quantity: 0 }) : fetchTotalDistributed(date),
+          fetchDistributionDetails(showAllDates ? '' : date, sellerId),
+          showAllDates ? Promise.resolve({ total_quantity: 0 }) : fetchTotalDistributed(date, sellerId),
         ]);
         setDistributions(distData);
+        setFilteredDistributions(distData);
         setTotalDistributed(totalData.total_quantity || 0);
       } catch (error) {
-        console.error('Fetch Data Error:', error);
+        console.error('Fetch Data Error:', error, error.response?.data);
         Toast.show({
           type: 'error',
           text1: 'Error',
-          text2: error.message,
-          onPress: () => loadData(), // Retry
+          text2: error.message || 'Failed to load data',
+          onPress: () => loadData(),
         });
       } finally {
         setLoading(false);
@@ -52,13 +59,24 @@ const CoustomerMilkAssingDataList = () => {
     loadData();
   }, [date, showAllDates]);
 
+  // Filter distributions based on search query
+  useEffect(() => {
+    const filtered = distributions.filter(
+      (item) =>
+        (item.Name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.Customer_id.toString().includes(searchQuery)
+    );
+    setFilteredDistributions(filtered);
+    setPage(1); // Reset page on search
+  }, [searchQuery, distributions]);
+
   const onDateChange = (event, selected) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (selected) {
       const formattedDate = selected.toISOString().split('T')[0];
       setSelectedDate(selected);
       setDate(formattedDate);
-      setShowAllDates(false); // Reset to single date when selecting a new date
+      setShowAllDates(false);
     }
   };
 
@@ -66,74 +84,113 @@ const CoustomerMilkAssingDataList = () => {
     setShowAllDates(!showAllDates);
   };
 
-  const renderDistribution = ({ item }) => (
-    <View style={styles.distributionCard}>
-      <View style={styles.distributionHeader}>
-        <Text style={styles.customerName}>
-          {item.Name} (ID: {item.Customer_id})
+  const toggleCard = (id) => {
+    setExpandedCards((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const loadMore = () => {
+    setPage((prev) => prev + 1);
+  };
+
+  const renderDistribution = ({ item }) => {
+    const id = `${item.Customer_id}-${item.Distribution_date}`;
+    const isExpanded = expandedCards[id];
+    const dateTime = new Date(item.Distribution_date);
+    const formattedDateTime = `${dateTime.toLocaleDateString()} ${dateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+    return (
+      <TouchableOpacity
+        style={styles.distributionCard}
+        onPress={() => toggleCard(id)}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={styles.customerName}>
+            {item.Name || 'Unknown'} (ID: {item.Customer_id})
+          </Text>
+          <Icon
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color="#0288D1"
+          />
+        </View>
+        <Text style={styles.cardSubText}>
+          {formattedDateTime}
         </Text>
-        <Text style={styles.distributionDate}>
-          {new Date(item.Distribution_date).toLocaleDateString()}
+        <Text style={styles.cardSubText}>
+          Quantity: {parseFloat(item.Quantity).toFixed(2)} L
         </Text>
-      </View>
-      <View style={styles.distributionDetails}>
-        <Text style={styles.detailText}>Contact: {item.Contact}</Text>
-        <Text style={styles.detailText}>Address: {item.Address}</Text>
-        <Text style={styles.detailText}>Price: ₹{parseFloat(item.Price).toFixed(2)}/L</Text>
-        <Text style={styles.detailText}>Quantity: {parseFloat(item.Quantity).toFixed(2)} L</Text>
-        <Text style={styles.detailText}>
-          Total: ₹{(parseFloat(item.Quantity) * parseFloat(item.Price)).toFixed(2)}
-        </Text>
-      </View>
-    </View>
-  );
+        {isExpanded && (
+          <View style={styles.cardDetails}>
+            <Text style={styles.detailText}>Contact: {item.Contact || 'N/A'}</Text>
+            <Text style={styles.detailText}>Address: {item.Address || 'N/A'}</Text>
+            <Text style={styles.detailText}>Price: ₹{parseFloat(item.Price || 0).toFixed(2)}/L</Text>
+            <Text style={styles.detailText}>
+              Total: ₹{(parseFloat(item.Quantity) * parseFloat(item.Price || 0)).toFixed(2)}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const paginatedData = filteredDistributions.slice(0, page * itemsPerPage);
 
   return (
-    <LinearGradient colors={['#4FC3F7', '#0288D1']} style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
-            <Icon name="arrow-left" size={24} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Milk Distribution Tracker</Text>
-          <TouchableOpacity
-            onPress={() => {
-              setLoading(true);
-              fetchDistributionDetails(showAllDates ? '' : date)
-                .then((data) => {
-                  setDistributions(data);
-                  Toast.show({
-                    type: 'success',
-                    text1: 'Success',
-                    text2: 'Data refreshed successfully',
-                  });
-                })
-                .catch((error) => {
-                  Toast.show({
-                    type: 'error',
-                    text1: 'Error',
-                    text2: error.message,
-                  });
-                })
-                .finally(() => setLoading(false));
-            }}
-            style={styles.iconButton}
-          >
-            <Icon name="refresh" size={24} color="#FFF" />
-          </TouchableOpacity>
-        </View>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
+          <Icon name="arrow-left" size={24} color="#0288D1" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Milk Distribution Tracker</Text>
+        <TouchableOpacity
+          onPress={() => {
+            setLoading(true);
+            fetchDistributionDetails(showAllDates ? '' : date, sellerId)
+              .then((data) => {
+                setDistributions(data);
+                setFilteredDistributions(data);
+                Toast.show({
+                  type: 'success',
+                  text1: 'Success',
+                  text2: 'Data refreshed successfully',
+                });
+              })
+              .catch((error) => {
+                console.error('Refresh Error:', error, error.response?.data);
+                Toast.show({
+                  type: 'error',
+                  text1: 'Error',
+                  text2: error.message || 'Failed to refresh data',
+                });
+              })
+              .finally(() => setLoading(false));
+          }}
+          style={styles.iconButton}
+        >
+          <Icon name="refresh" size={24} color="#0288D1" />
+        </TouchableOpacity>
+      </View>
 
-        {/* Summary Section */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>
-            {showAllDates ? 'All Distributions (Seller ID 4)' : `Distribution for ${date}`}
-          </Text>
-          {!showAllDates && (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Total Distributed:</Text>
-              <Text style={styles.summaryValue}>{totalDistributed.toFixed(2)} L</Text>
-            </View>
-          )}
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>
+          {showAllDates ? `All Distributions (Seller ID ${sellerId})` : `Distribution for ${date}`}
+        </Text>
+        {!showAllDates && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Total Distributed:</Text>
+            <Text style={styles.summaryValue}>{totalDistributed.toFixed(2)} L</Text>
+          </View>
+        )}
+        <View style={styles.controlsContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by Name or ID"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
           <View style={styles.datePickerContainer}>
             <TouchableOpacity
               onPress={() => setShowDatePicker(true)}
@@ -146,53 +203,57 @@ const CoustomerMilkAssingDataList = () => {
               onPress={toggleShowAllDates}
               style={[styles.toggleButton, showAllDates && styles.toggleButtonActive]}
             >
-              <Text style={styles.toggleButtonText}>
+              <Text style={[styles.toggleButtonText, showAllDates && styles.toggleButtonTextActive]}>
                 {showAllDates ? 'Single Date' : 'All Dates'}
               </Text>
             </TouchableOpacity>
           </View>
-          {showDatePicker && (
-            <DateTimePicker
-              value={selectedDate}
-              mode="date"
-              display="default"
-              onChange={onDateChange}
-            />
-          )}
         </View>
+        {showDatePicker && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display="default"
+            onChange={onDateChange}
+          />
+        )}
+      </View>
 
-        {/* Distribution List */}
-        {loading ? (
-          <ActivityIndicator size="large" color="#FFF" style={styles.loader} />
-        ) : distributions.length > 0 ? (
+      {loading ? (
+        <ActivityIndicator size="large" color="#0288D1" style={styles.loader} />
+      ) : paginatedData.length > 0 ? (
+        <>
           <FlatList
-            data={distributions}
+            data={paginatedData}
             keyExtractor={(item, index) => `${item.Customer_id}-${item.Distribution_date}-${index}`}
             renderItem={renderDistribution}
             contentContainerStyle={styles.listContainer}
           />
-        ) : (
-          <View style={styles.noDataContainer}>
-            <Icon name="alert-circle-outline" size={40} color="#FFF" />
-            <Text style={styles.noDataText}>
-              {showAllDates
-                ? 'No distributions found for Seller ID 4'
-                : `No distributions found for ${date}`}
-            </Text>
-          </View>
-        )}
-      </SafeAreaView>
+          {paginatedData.length < filteredDistributions.length && (
+            <TouchableOpacity style={styles.loadMoreButton} onPress={loadMore}>
+              <Text style={styles.loadMoreText}>Load More</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      ) : (
+        <View style={styles.noDataContainer}>
+          <Icon name="alert-circle-outline" size={40} color="#0288D1" />
+          <Text style={styles.noDataText}>
+            {showAllDates
+              ? `No distributions found for Seller ID ${sellerId}`
+              : `No distributions found for ${date}`}
+          </Text>
+        </View>
+      )}
       <Toast />
-    </LinearGradient>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  safeArea: {
-    flex: 1,
+    backgroundColor: '#FFF',
   },
   header: {
     flexDirection: 'row',
@@ -200,17 +261,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: '#0288D1',
   },
   iconButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#E3F2FD',
   },
   summaryCard: {
     backgroundColor: '#FFF',
@@ -242,6 +304,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#0288D1',
+  },
+  controlsContainer: {
+    marginTop: 8,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    fontSize: 16,
+    backgroundColor: '#9FA5CCFF',
   },
   datePickerContainer: {
     flexDirection: 'row',
@@ -294,7 +368,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 2,
   },
-  distributionHeader: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -305,14 +379,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#0288D1',
   },
-  distributionDate: {
+  cardSubText: {
     fontSize: 14,
     color: '#555',
+    marginBottom: 4,
   },
-  distributionDetails: {
+  cardDetails: {
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
     paddingTop: 8,
+    marginTop: 8,
   },
   detailText: {
     fontSize: 14,
@@ -330,12 +406,24 @@ const styles = StyleSheet.create({
   },
   noDataText: {
     fontSize: 16,
-    color: '#FFF',
+    color: '#0288D1',
     textAlign: 'center',
     marginTop: 8,
   },
   loader: {
     marginVertical: 16,
+  },
+  loadMoreButton: {
+    backgroundColor: '#0288D1',
+    borderRadius: 8,
+    padding: 12,
+    margin: 16,
+    alignItems: 'center',
+  },
+  loadMoreText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
