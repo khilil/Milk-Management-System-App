@@ -6,48 +6,72 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../../Milk-Management-System-App/database-connect/Login/login-api-handle';
 
 const LoginScreen = ({ navigation }) => {
-  const [username, setUsername] = useState('');
+  const [contact, setContact] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
-    // Inside handleLogin
-    await AsyncStorage.setItem('userRole', role);
-
-
-
-    if (!username || !password || !role) {
+    if (!contact || !password || !role) {
       Alert.alert('Error', 'Please fill all the fields');
       return;
     }
-  
-    // 🔐 Default testing credentials
-    const defaultCredentials = {
-      admin: { username: 'Admin', password: '123456' },
-      seller: { username: 'Seller', password: '123456' },
-      customer: { username: 'Customer', password: '123456' },
-    };
-  
-    const current = defaultCredentials[role];
-  
-    if (current && username === current.username && password === current.password) {
-      if (role === 'admin') {
-        navigation.replace('Home');
-      } else if (role === 'seller') {
-        navigation.replace('SellerDashboard');
-      } else if (role === 'customer') {
-        navigation.replace('CustomerDashboard');
+
+    if (!/^\d{10}$/.test(contact)) {
+      Alert.alert('Error', 'Contact must be a 10-digit number');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const userType = role.toLowerCase();
+      const response = await api.post('/login.php?path=login', {
+        contact,
+        password,
+        user_type: userType,
+      });
+
+      if (response.status === 'success') {
+        await AsyncStorage.setItem('userRole', userType);
+        await AsyncStorage.setItem('userId', response.data.user_id.toString());
+        await AsyncStorage.setItem('userContact', response.data.contact);
+        await AsyncStorage.setItem('token', response.data.token);
+        if (response.data.username) {
+          await AsyncStorage.setItem('userName', response.data.username);
+        }
+
+        if (userType === 'admin') {
+          navigation.replace('Home');
+        } else if (userType === 'seller') {
+          navigation.replace('SellerDashboard');
+        } else if (userType === 'customer') {
+          navigation.replace('CustomerDashboard', {
+            customer: {
+              id: response.data.user_id,
+              username: response.data.username || 'Customer',
+              phone: response.data.contact,
+              address: response.data.address || 'N/A',
+              milkQuantity: '5', 
+            },
+            isAdmin: false,
+          });
+        }
+      } else {
+        Alert.alert('Login Failed', response.message || 'Invalid contact or password');
       }
-    } else {
-      Alert.alert('Login Failed', 'Invalid username or password');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Something went wrong, please try again');
+    } finally {
+      setIsLoading(false);
     }
   };
-  
 
   return (
     <View style={styles.container}>
@@ -55,10 +79,11 @@ const LoginScreen = ({ navigation }) => {
 
       <TextInput
         style={styles.input}
-        placeholder="Username"
-        value={username}
-        onChangeText={setUsername}
+        placeholder="Contact Number"
+        value={contact}
+        onChangeText={setContact}
         placeholderTextColor="#777"
+        keyboardType="phone-pad"
       />
 
       <TextInput
@@ -84,14 +109,16 @@ const LoginScreen = ({ navigation }) => {
         </Picker>
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
-      </TouchableOpacity>
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#2A5866" />
+      ) : (
+        <TouchableOpacity style={styles.button} onPress={handleLogin}>
+          <Text style={styles.buttonText}>Login</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
-
-export default LoginScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -143,3 +170,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
+export default LoginScreen;
