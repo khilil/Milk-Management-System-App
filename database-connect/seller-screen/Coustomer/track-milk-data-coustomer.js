@@ -2,7 +2,7 @@ import axios from 'axios';
 import { API_CONFIG } from '../../Apichange';
 
 // API base URL (update with your server IP or domain)
-const API_BASE_URL = API_CONFIG.trackMilkApi;
+const API_BASE_URL = API_CONFIG.sellermilkdistrubiute;
 
 // Create Axios instance
 const apiClient = axios.create({
@@ -10,37 +10,88 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
 });
 
-export const fetchDistributionDetails = async (date = '', sellerId) => {
+// Fetch all customers
+export const fetchCustomers = async () => {
   try {
-    const response = await apiClient.get(
-      `?path=distribution_details&seller_id=${sellerId}${date ? `&date=${date}` : ''}`
-    );
-    console.log('Distribution Details Response:', response.data);
+    const response = await apiClient.get('?path=customers');
     if (response.data.status === 'success') {
-      return response.data.data;
+      return response.data.data; // Return customer array
     } else {
       throw new Error(response.data.message);
     }
   } catch (error) {
-    console.error('Fetch Distribution Error:', error, error.response?.data);
-    throw new Error('Failed to fetch distribution details: ' + (error.response?.data?.message || error.message));
+    throw new Error('Failed to fetch customers: ' + error.message);
   }
 };
 
-export const fetchTotalDistributed = async (date, sellerId) => {
+// Record a milk delivery
+export const recordDelivery = async (deliveryData) => {
   try {
-    const response = await apiClient.get(`?path=total_distributed&seller_id=${sellerId}&date=${date}`);
-    console.log('Total Distributed Response:', response.data);
+    const response = await apiClient.post('?path=delivery', deliveryData);
     if (response.data.status === 'success') {
-      return response.data.data;
+      return response.data.data; // Return delivery details
     } else {
       throw new Error(response.data.message);
     }
   } catch (error) {
-    console.error('Fetch Total Distributed Error:', error, error.response?.data);
-    throw new Error('Failed to fetch total milk distributed: ' + (error.response?.data?.message || error.message));
+    throw new Error('Failed to record delivery: ' + error.message);
+  }
+};
+
+// Delete a milk delivery
+export const deleteDelivery = async (deliveryData) => {
+  try {
+    const response = await apiClient.delete('?path=delivery', { data: deliveryData });
+    if (response.data.status === 'success') {
+      return response.data.data; // Return updated details
+    } else {
+      throw new Error(response.data.message);
+    }
+  } catch (error) {
+    throw new Error('Failed to delete delivery: ' + error.message);
+  }
+};
+
+// Fetch total milk sold by seller on a specific date
+export const fetchTotalMilkSold = async (sellerId, date) => {
+  try {
+    const response = await apiClient.get(`?path=milk_sold&seller_id=${sellerId}&date=${date}`);
+    if (response.data.status === 'success') {
+      return response.data.data; // Return total quantity
+    } else {
+      throw new Error(response.data.message);
+    }
+  } catch (error) {
+    throw new Error('Failed to fetch total milk sold: ' + error.message);
+  }
+};
+
+// Fetch milk assignment details for seller on a specific date
+export const fetchMilkAssignment = async (sellerId, date) => {
+  try {
+    const response = await apiClient.get(`?path=milk_assignment&seller_id=${sellerId}&date=${date}`);
+    if (response.data.status === 'success') {
+      return response.data.data; // Return assignment details
+    } else {
+      throw new Error(response.data.message);
+    }
+  } catch (error) {
+    throw new Error('Failed to fetch milk assignment: ' + error.message);
+  }
+};
+
+// Fetch distribution details for seller on a specific date
+export const fetchDistributionDetails = async (date, sellerId) => {
+  try {
+    const response = await apiClient.get(`?path=distribution_details&seller_id=${sellerId}&date=${date}`);
+    if (response.data.status === 'success') {
+      return response.data.data; // Return delivery details array
+    } else {
+      throw new Error(response.data.message);
+    }
+  } catch (error) {
+    throw new Error('Failed to fetch distribution details: ' + error.message);
   }
 };
