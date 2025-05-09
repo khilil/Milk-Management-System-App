@@ -3,7 +3,22 @@ import { API_CONFIG } from '../../Apichange';
 
 
 
-const API_URL =   API_CONFIG.BASE_URL
+const API_URL =   API_CONFIG.BASE_URL;
+export const fetchAddresses = async () => {
+  try {
+    const response = await axios.get(`${API_URL}?path=addresses`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 5000,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching addresses:', error.response ? error.response.data : error.message);
+    throw error;
+  }
+};
+
 
 export const addCustomer = async (customerData) => {
   try {

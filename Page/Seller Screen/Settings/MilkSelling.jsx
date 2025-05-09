@@ -14,7 +14,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
-import { fetchCustomers, recordDelivery, fetchTotalMilkSold, fetchMilkAssignment } from '../../../database-connect/seller-screen/seller_give_milk_to_customer/apiService';
+import { fetchCustomers, recordDelivery, fetchTotalMilkSold, fetchMilkAssignment, fetchDistributionDetails, deleteDelivery } from '../../../database-connect/seller-screen/seller_give_milk_to_customer/apiService';
 
 const MilkSelling = () => {
   const navigation = useNavigation();
@@ -34,22 +34,21 @@ const MilkSelling = () => {
   const [loading, setLoading] = useState(false);
   const [sellerId, setSellerId] = useState(null);
 
-  // Load seller ID and entries from AsyncStorage
+  // Load seller ID
   useEffect(() => {
     const loadInitialData = async () => {
       try {
         const userId = await AsyncStorage.getItem('userId');
-        if (userId) {
-          setSellerId(parseInt(userId)); // Convert to integer
-          const storedEntries = await AsyncStorage.getItem('milkEntries');
-          if (storedEntries) setEntries(JSON.parse(storedEntries));
+        const userRole = await AsyncStorage.getItem('userRole');
+        if (userId && userRole === 'seller') {
+          setSellerId(parseInt(userId));
         } else {
           Toast.show({
             type: 'error',
             text1: 'Error',
-            text2: 'Seller ID not found. Please log in again.',
+            text2: 'Please log in as a seller.',
           });
-          navigation.navigate('Login'); // Redirect to login if no sellerId
+          navigation.replace('Login');
         }
       } catch (error) {
         console.error('Load Initial Data Error:', error);
@@ -61,7 +60,7 @@ const MilkSelling = () => {
       }
     };
     loadInitialData();
-  }, []);
+  }, [navigation]);
 
   // Fetch customers when sellerId is available
   useEffect(() => {
@@ -78,7 +77,7 @@ const MilkSelling = () => {
             type: 'error',
             text1: 'Error',
             text2: error.message,
-            onPress: () => loadCustomers(), // Retry
+            onPress: () => loadCustomers(),
           });
         } finally {
           setLoading(false);
@@ -88,43 +87,43 @@ const MilkSelling = () => {
     }
   }, [sellerId]);
 
-  // Fetch milk assignment and total milk sold when date or sellerId changes
+  // Fetch milk assignment, total milk sold, and distribution details
   useEffect(() => {
     if (sellerId && date) {
-      const loadMilkData = async () => {
+      const loadData = async () => {
         setLoading(true);
         try {
-          const [assignmentData, soldData] = await Promise.all([
+          const [assignmentData, soldData, distData] = await Promise.all([
             fetchMilkAssignment(sellerId, date),
             fetchTotalMilkSold(sellerId, date),
+            fetchDistributionDetails(sellerId, date),
           ]);
           setAssignedMilk(assignmentData.assigned_quantity);
           setRemainingMilk(assignmentData.remaining_quantity);
           setTotalMilkSold(soldData.total_quantity);
+          setEntries(distData.map(item => ({
+            delivery_id: item.delivery_id,
+            seller_id: item.seller_id,
+            customer_id: item.customer_id,
+            customer: { Customer_id: item.customer_id, Name: item.customer_name },
+            milkQuantity: item.quantity,
+            date: item.date,
+          })));
         } catch (error) {
-          console.error('Fetch Milk Data Error:', error);
+          console.error('Fetch Data Error:', error);
           Toast.show({
             type: 'error',
             text1: 'Error',
             text2: error.message,
-            onPress: () => loadMilkData(), // Retry
+            onPress: () => loadData(),
           });
         } finally {
           setLoading(false);
         }
       };
-      loadMilkData();
+      loadData();
     }
   }, [date, sellerId]);
-
-  // Save entries to AsyncStorage
-  useEffect(() => {
-    if (entries.length > 0) {
-      AsyncStorage.setItem('milkEntries', JSON.stringify(entries)).catch((error) =>
-        console.error('Save Entries Error:', error)
-      );
-    }
-  }, [entries]);
 
   const toggleDropdown = () => {
     setDropdownVisible(!dropdownVisible);
@@ -186,12 +185,16 @@ const MilkSelling = () => {
         date: date,
       };
       const result = await recordDelivery(deliveryData);
-      const newEntry = {
-        customer: selectedCustomer,
-        milkQuantity: quantityNum,
-        date,
-      };
-      setEntries([...entries, newEntry]);
+      // Refresh entries
+      const distData = await fetchDistributionDetails(sellerId, date);
+      setEntries(distData.map(item => ({
+        delivery_id: item.delivery_id,
+        seller_id: item.seller_id,
+        customer_id: item.customer_id,
+        customer: { Customer_id: item.customer_id, Name: item.customer_name },
+        milkQuantity: item.quantity,
+        date: item.date,
+      })));
       setTotalMilkSold((prev) => prev + quantityNum);
       setRemainingMilk(result.remaining_quantity);
       Toast.show({
@@ -206,7 +209,48 @@ const MilkSelling = () => {
         type: 'error',
         text1: 'Error',
         text2: error.message,
-        onPress: () => handleAddEntry(), // Retry
+        onPress: () => handleAddEntry(),
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteEntry = async (entry) => {
+    setLoading(true);
+    try {
+      const deliveryData = {
+        delivery_id: entry.delivery_id,
+        seller_id: entry.seller_id,
+        customer_id: entry.customer_id,
+        quantity: entry.milkQuantity,
+        date: entry.date,
+      };
+      const result = await deleteDelivery(deliveryData);
+      // Refresh entries
+      const distData = await fetchDistributionDetails(sellerId, date);
+      setEntries(distData.map(item => ({
+        delivery_id: item.delivery_id,
+        seller_id: item.seller_id,
+        customer_id: item.customer_id,
+        customer: { Customer_id: item.customer_id, Name: item.customer_name },
+        milkQuantity: item.quantity,
+        date: item.date,
+      })));
+      setTotalMilkSold((prev) => prev - entry.milkQuantity);
+      setRemainingMilk(result.remaining_quantity);
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Entry deleted successfully',
+      });
+    } catch (error) {
+      console.error('Delete Entry Error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.message,
+        onPress: () => handleDeleteEntry(entry),
       });
     } finally {
       setLoading(false);
@@ -220,45 +264,45 @@ const MilkSelling = () => {
     setSelectedDate(new Date());
   };
 
-  const handleDeleteEntry = (index) => {
-    setEntries(entries.filter((_, i) => i !== index));
-    Toast.show({
-      type: 'success',
-      text1: 'Success',
-      text2: 'Entry deleted',
-    });
-  };
-
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     if (sellerId && date) {
       setLoading(true);
-      Promise.all([
-        fetchCustomers(),
-        fetchMilkAssignment(sellerId, date),
-        fetchTotalMilkSold(sellerId, date),
-      ])
-        .then(([customerData, assignmentData, soldData]) => {
-          setCustomers(customerData);
-          setFilteredCustomers(customerData);
-          setAssignedMilk(assignmentData.assigned_quantity);
-          setRemainingMilk(assignmentData.remaining_quantity);
-          setTotalMilkSold(soldData.total_quantity);
-          Toast.show({
-            type: 'success',
-            text1: 'Success',
-            text2: 'Data refreshed',
-          });
-        })
-        .catch((error) => {
-          console.error('Refresh Error:', error);
-          Toast.show({
-            type: 'error',
-            text1: 'Error',
-            text2: error.message,
-            onPress: () => handleRefresh(), // Retry
-          });
-        })
-        .finally(() => setLoading(false));
+      try {
+        const [customerData, assignmentData, soldData, distData] = await Promise.all([
+          fetchCustomers(),
+          fetchMilkAssignment(sellerId, date),
+          fetchTotalMilkSold(sellerId, date),
+          fetchDistributionDetails(sellerId, date),
+        ]);
+        setCustomers(customerData);
+        setFilteredCustomers(customerData);
+        setAssignedMilk(assignmentData.assigned_quantity);
+        setRemainingMilk(assignmentData.remaining_quantity);
+        setTotalMilkSold(soldData.total_quantity);
+        setEntries(distData.map(item => ({
+          delivery_id: item.delivery_id,
+          seller_id: item.seller_id,
+          customer_id: item.customer_id,
+          customer: { Customer_id: item.customer_id, Name: item.customer_name },
+          milkQuantity: item.quantity,
+          date: item.date,
+        })));
+        Toast.show({
+          type: 'success',
+          text1: 'Success',
+          text2: 'Data refreshed',
+        });
+      } catch (error) {
+        console.error('Refresh Error:', error);
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: error.message,
+          onPress: () => handleRefresh(),
+        });
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -279,12 +323,12 @@ const MilkSelling = () => {
     </TouchableOpacity>
   );
 
-  const renderEntry = ({ item, index }) => (
+  const renderEntry = ({ item }) => (
     <View style={styles.entryItem}>
       <Text style={styles.entryText}>
-        {item.date} - {item.customer.Name} (ID: {item.customer.Customer_id}) - {item.milkQuantity} L
+        {item.date} - {item.customer.Name} (ID: {item.customer.Customer_id}) - {item.milkQuantity.toFixed(2)} L
       </Text>
-      <TouchableOpacity onPress={() => handleDeleteEntry(index)}>
+      <TouchableOpacity onPress={() => handleDeleteEntry(item)}>
         <AntDesign name="delete" size={20} color="#D32F2F" />
       </TouchableOpacity>
     </View>
@@ -397,11 +441,11 @@ const MilkSelling = () => {
       {entries.length > 0 ? (
         <FlatList
           data={entries}
-          keyExtractor={(_, index) => index.toString()}
+          keyExtractor={(item) => item.delivery_id.toString()}
           renderItem={renderEntry}
         />
       ) : (
-        <Text style={styles.noResults}>No entries yet</Text>
+        <Text style={styles.noResults}>No entries for {date}</Text>
       )}
 
       <Toast />

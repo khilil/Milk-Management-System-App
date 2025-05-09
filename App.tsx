@@ -33,7 +33,7 @@ export default function App() {
     const checkLogin = async () => {
       const role = await AsyncStorage.getItem('userRole');
       if (role === 'admin') setInitialRoute('Home');
-      else if (role === 'seller') setInitialRoute('SellerDashboard');
+      else if (role === 'seller') setInitialRoute('Home');
       else if (role === 'customer') setInitialRoute('CustomerDashboard');
       else setInitialRoute('Login');
     };

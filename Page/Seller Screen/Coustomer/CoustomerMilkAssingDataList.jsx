@@ -2,316 +2,109 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   FlatList,
+  TouchableOpacity,
   StyleSheet,
   Platform,
   ActivityIndicator,
-  Alert,
+  SafeAreaView,
+  TextInput,
 } from 'react-native';
-import AntDesign from 'react-native-vector-icons/AntDesign';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
-import { fetchCustomers, recordDelivery, fetchTotalMilkSold, fetchMilkAssignment, deleteDelivery } from '../../../database-connect/seller-screen/seller_give_milk_to_customer/apiService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchDistributionDetails } from '../../../database-connect/seller-screen/Coustomer/track-milk-data-coustomer';
 
-const MilkSelling = () => {
+const CoustomerMilkAssingDataList = () => {
   const navigation = useNavigation();
-  const [dropdownVisible, setDropdownVisible] = useState(false);
-  const [searchText, setSearchText] = useState('');
-  const [filteredCustomers, setFilteredCustomers] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [milkQuantity, setMilkQuantity] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [entries, setEntries] = useState([]);
-  const [totalMilkSold, setTotalMilkSold] = useState(0);
-  const [assignedMilk, setAssignedMilk] = useState(0);
-  const [remainingMilk, setRemainingMilk] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [sellerId, setSellerId] = useState(null);
-  const [hasAssignment, setHasAssignment] = useState(true);
 
-  // Load seller ID and entries from AsyncStorage
+  // Initialize date to today's date
+  const today = new Date();
+  const formattedToday = today.toISOString().split('T')[0]; // e.g., '2025-05-03'
+
+  const [date, setDate] = useState(formattedToday);
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [distributions, setDistributions] = useState([]);
+  const [filteredDistributions, setFilteredDistributions] = useState([]);
+  const [totalDistributed, setTotalDistributed] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [showAllDates, setShowAllDates] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCards, setExpandedCards] = useState({});
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
+  const [sellerId, setSellerId] = useState(null); // State for sellerId
+
+  // Fetch sellerId from AsyncStorage
   useEffect(() => {
-    const loadInitialData = async () => {
+    const getSellerId = async () => {
       try {
         const userId = await AsyncStorage.getItem('userId');
         if (userId) {
-          setSellerId(parseInt(userId));
+          setSellerId(parseInt(userId)); // Convert to integer
         } else {
           Toast.show({
             type: 'error',
             text1: 'Error',
             text2: 'Seller ID not found. Please log in again.',
           });
-          navigation.navigate('Login');
+          navigation.navigate('Login'); // Redirect to login if no sellerId
         }
       } catch (error) {
-        console.error('Load Initial Data Error:', error);
         Toast.show({
           type: 'error',
           text1: 'Error',
-          text2: 'Failed to load initial data',
+          text2: 'Failed to load seller ID.',
         });
       }
     };
-    loadInitialData();
+    getSellerId();
   }, []);
 
-  // Fetch customers when sellerId is available
+  // Fetch data when sellerId, date, or showAllDates changes
   useEffect(() => {
-    if (sellerId) {
-      const loadCustomers = async () => {
-        setLoading(true);
-        try {
-          const customerData = await fetchCustomers();
-          setCustomers(customerData);
-          setFilteredCustomers(customerData);
-        } catch (error) {
-          console.error('Fetch Customers Error:', error);
-          Toast.show({
-            type: 'error',
-            text1: 'Error',
-            text2: error.message,
-            onPress: () => loadCustomers(),
-          });
-        } finally {
-          setLoading(false);
-        }
-      };
-      loadCustomers();
-    }
-  }, [sellerId]);
+    if (!sellerId) return; // Wait until sellerId is available
 
-
-  // Fetch milk assignment and total milk sold when date or sellerId changes
-  useEffect(() => {
-    if (sellerId && date) {
-      const loadMilkData = async () => {
-        setLoading(true);
-        try {
-          const [assignmentData, soldData] = await Promise.all([
-            fetchMilkAssignment(sellerId, date),
-            fetchTotalMilkSold(sellerId, date),
-          ]);
-          setAssignedMilk(assignmentData.assigned_quantity);
-          setRemainingMilk(assignmentData.remaining_quantity);
-          setTotalMilkSold(soldData.total_quantity);
-          setHasAssignment(assignmentData.assigned_quantity > 0);
-        } catch (error) {
-          console.error('Fetch Milk Data Error:', error);
-          Toast.show({
-            type: 'error',
-            text1: 'Error',
-            text2: error.message,
-            onPress: () => loadMilkData(),
-          });
-        } finally {
-          setLoading(false);
-        }
-      };
-      loadMilkData();
-    }
-  }, [date, sellerId]);
-
-  // Save entries to AsyncStorage
-  useEffect(() => {
-    if (entries.length > 0) {
-      AsyncStorage.setItem('milkEntries', JSON.stringify(entries)).catch((error) =>
-        console.error('Save Entries Error:', error)
-      );
-    }
-  }, [entries]);
-
-  const toggleDropdown = () => {
-    setDropdownVisible(!dropdownVisible);
-    setFilteredCustomers(customers);
-    setSearchText('');
-  };
-
-  const handleSearch = (text) => {
-    setSearchText(text);
-    const filtered = customers.filter(
-      (customer) =>
-        customer.Name.toLowerCase().includes(text.toLowerCase()) ||
-        customer.Customer_id.toString().includes(text)
-    );
-    setFilteredCustomers(filtered);
-  };
-
-  const handleSelectCustomer = (customer) => {
-    setSelectedCustomer(customer);
-    setDropdownVisible(false);
-  };
-
-  const handleAddEntry = async () => {
-    if (!hasAssignment) {
-      Toast.show({
-        type: 'info',
-        text1: 'No Assignment',
-        text2: 'No milk assignment for this date. Please contact the admin.',
-      });
-      return;
-    }
-
-    if (!selectedCustomer || !milkQuantity || !date || !sellerId) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Please fill all fields and ensure seller is logged in',
-      });
-      return;
-    }
-
-    const quantityNum = parseFloat(milkQuantity);
-    if (isNaN(quantityNum) || quantityNum <= 0) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Quantity must be a positive number',
-      });
-      return;
-    }
-
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(date)) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Invalid date format. Use YYYY-MM-DD',
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const deliveryData = {
-        seller_id: sellerId,
-        customer_id: selectedCustomer.Customer_id,
-        quantity: quantityNum,
-        date: date,
-      };
-      const result = await recordDelivery(deliveryData);
-      const newEntry = {
-        delivery_id: result.delivery_id,
-        customer: selectedCustomer,
-        milkQuantity: quantityNum,
-        date,
-      };
-      setEntries([...entries, newEntry]);
-      setTotalMilkSold((prev) => prev + quantityNum);
-      setRemainingMilk(result.remaining_quantity);
-      Toast.show({
-        type: 'success',
-        text1: 'Success',
-        text2: 'Delivery recorded successfully',
-      });
-      clearForm();
-    } catch (error) {
-      console.error('Record Delivery Error:', error, error.response?.data);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: error.message,
-        onPress: () => handleAddEntry(),
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const clearForm = () => {
-    setSelectedCustomer(null);
-    setMilkQuantity('');
-    setDate(new Date().toISOString().split('T')[0]);
-    setSelectedDate(new Date());
-  };
-
-  const handleDeleteEntry = async (index) => {
-    const entry = entries[index];
-    Alert.alert(
-      'Confirm Deletion',
-      'Are you sure you want to delete this entry?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const deleteData = {
-                delivery_id: entry.delivery_id,
-                seller_id: sellerId,
-                customer_id: entry.customer.Customer_id,
-                quantity: entry.milkQuantity,
-                date: entry.date,
-              };
-              console.log('Deleting entry:', deleteData);
-              const result = await deleteDelivery(deleteData);
-              setEntries(entries.filter((_, i) => i !== index));
-              setTotalMilkSold((prev) => prev - entry.milkQuantity);
-              setRemainingMilk(result.remaining_quantity);
-              Toast.show({
-                type: 'success',
-                text1: 'Success',
-                text2: 'Entry deleted and database updated',
-              });
-            } catch (error) {
-              console.error('Delete Entry Error:', error, error.response?.data);
-              Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: error.message || 'Failed to delete entry',
-                onPress: () => handleDeleteEntry(index),
-              });
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleRefresh = () => {
-    if (sellerId && date) {
+    const loadData = async () => {
       setLoading(true);
-      Promise.all([
-        fetchCustomers(),
-        fetchMilkAssignment(sellerId, date),
-        fetchTotalMilkSold(sellerId, date),
-      ])
-        .then(([customerData, assignmentData, soldData]) => {
-          setCustomers(customerData);
-          setFilteredCustomers(customerData);
-          setAssignedMilk(assignmentData.assigned_quantity);
-          setRemainingMilk(assignmentData.remaining_quantity);
-          setTotalMilkSold(soldData.total_quantity);
-          setHasAssignment(assignmentData.assigned_quantity > 0);
-          Toast.show({
-            type: 'success',
-            text1: 'Success',
-            text2: 'Data refreshed',
-          });
-        })
-        .catch((error) => {
-          console.error('Refresh Error:', error);
-          Toast.show({
-            type: 'error',
-            text1: 'Error',
-            text2: error.message,
-            onPress: () => handleRefresh(),
-          });
-        })
-        .finally(() => setLoading(false));
-    }
-  };
+      try {
+        const distData = await fetchDistributionDetails(showAllDates ? '' : date, sellerId);
+        setDistributions(distData);
+        setFilteredDistributions(distData);
+      } catch (error) {
+        const errorMessage = error.message || 'Failed to load data';
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: errorMessage,
+          onPress: () => loadData(),
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [date, showAllDates, sellerId]);
+
+  // Calculate total distributed quantity whenever distributions or filteredDistributions change
+  useEffect(() => {
+    const total = filteredDistributions.reduce((sum, item) => sum + parseFloat(item.Quantity || 0), 0);
+    setTotalDistributed(total);
+  }, [filteredDistributions]);
+
+  // Filter distributions based on search query
+  useEffect(() => {
+    const filtered = distributions.filter(
+      (item) =>
+        (item.Name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.Customer_id.toString().includes(searchQuery)
+    );
+    setFilteredDistributions(filtered);
+    setPage(1); // Reset page on search
+  }, [searchQuery, distributions]);
 
   const onDateChange = (event, selected) => {
     setShowDatePicker(Platform.OS === 'ios');
@@ -319,339 +112,359 @@ const MilkSelling = () => {
       const formattedDate = selected.toISOString().split('T')[0];
       setSelectedDate(selected);
       setDate(formattedDate);
+      setShowAllDates(false); // Ensure All Dates is disabled when a date is selected
     }
   };
 
-  const renderCustomer = ({ item }) => (
-    <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSelectCustomer(item)}>
-      <Text style={styles.dropdownText}>
-        {item.Name} (ID: {item.Customer_id})
-      </Text>
-    </TouchableOpacity>
-  );
+  const toggleShowAllDates = () => {
+    setShowAllDates((prev) => !prev);
+    if (!showAllDates) {
+      setDate(formattedToday); // Reset to today when switching to All Dates
+    }
+  };
 
-  const renderEntry = ({ item, index }) => (
-    <View style={styles.entryItem}>
-      <Text style={styles.entryText}>
-        {item.date} - {item.customer.Name} (ID: {item.customer.Customer_id}) - {item.milkQuantity} L
-      </Text>
-      <TouchableOpacity onPress={() => handleDeleteEntry(index)}>
-        <AntDesign name="delete" size={20} color="#D32F2F" />
+  const toggleCard = (id) => {
+    setExpandedCards((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const loadMore = () => {
+    setPage((prev) => prev + 1);
+  };
+
+  const renderDistribution = ({ item }) => {
+    const id = `${item.Customer_id}-${item.Distribution_date}`;
+    const isExpanded = expandedCards[id];
+    const dateTime = new Date(item.Distribution_date);
+    const formattedDateTime = `${dateTime.toLocaleDateString()} ${dateTime.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    })}`;
+
+    return (
+      <TouchableOpacity style={styles.distributionCard} onPress={() => toggleCard(id)}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.customerName}>
+            {item.Name || 'Unknown'} (ID: {item.Customer_id})
+          </Text>
+          <Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color="#0288D1" />
+        </View>
+        <Text style={styles.cardSubText}>{formattedDateTime}</Text>
+        <Text style={styles.cardSubText}>Quantity: {parseFloat(item.Quantity).toFixed(2)} L</Text>
+        {isExpanded && (
+          <View style={styles.cardDetails}>
+            <Text style={styles.detailText}>Contact: {item.Contact || 'N/A'}</Text>
+            <Text style={styles.detailText}>Address: {item.Address || 'N/A'}</Text>
+            <Text style={styles.detailText}>Price: ₹{parseFloat(item.Price || 0).toFixed(2)}/L</Text>
+            <Text style={styles.detailText}>
+              Total: ₹{(parseFloat(item.Quantity) * parseFloat(item.Price || 0)).toFixed(2)}
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
-    </View>
-  );
+    );
+  };
+
+  const paginatedData = filteredDistributions.slice(0, page * itemsPerPage);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.heading}>Milk Distribution</Text>
-        <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
-          <AntDesign name="reload1" size={20} color="#FFFFFF" />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
+          <Icon name="arrow-left" size={24} color="#0288D1" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Milk Distribution Tracker</Text>
+        <TouchableOpacity
+          onPress={() => {
+            setLoading(true);
+            fetchDistributionDetails(showAllDates ? '' : date, sellerId)
+              .then((data) => {
+                setDistributions(data);
+                setFilteredDistributions(data);
+                Toast.show({
+                  type: 'success',
+                  text1: 'Success',
+                  text2: 'Data refreshed successfully',
+                });
+              })
+              .catch((error) => {
+                const errorMessage = error.message || 'Failed to refresh data';
+                Toast.show({
+                  type: 'error',
+                  text1: 'Error',
+                  text2: errorMessage,
+                });
+              })
+              .finally(() => setLoading(false));
+          }}
+          style={styles.iconButton}
+        >
+          <Icon name="refresh" size={24} color="#0288D1" />
         </TouchableOpacity>
       </View>
 
-      {/* Summary Card */}
       <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Summary for {date} (Seller ID: {sellerId || 'N/A'})</Text>
-        {!hasAssignment && (
-          <Text style={styles.noAssignmentText}>
-            No milk assigned for this date. Contact the admin to assign milk.
-          </Text>
-        )}
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Assigned Milk:</Text>
-          <Text style={styles.summaryValue}>{assignedMilk.toFixed(2)} L</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Remaining Milk:</Text>
-          <Text style={styles.summaryValue}>{remainingMilk.toFixed(2)} L</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Distributed Milk:</Text>
-          <Text style={styles.summaryValue}>{totalMilkSold.toFixed(2)} L</Text>
-        </View>
-      </View>
-
-      {/* Searchable Dropdown */}
-      <TouchableOpacity style={styles.dropdownToggle} onPress={toggleDropdown}>
-        <Text style={styles.dropdownText}>
-          {selectedCustomer
-            ? `${selectedCustomer.Name} (ID: ${selectedCustomer.Customer_id})`
-            : 'Select Customer'}
+        <Text style={styles.summaryTitle}>
+          {showAllDates ? `All Distributions (Seller ID ${sellerId || 'N/A'})` : `Distribution for ${date}`}
         </Text>
-        <AntDesign name={dropdownVisible ? 'up' : 'down'} size={16} color="#2A5866" />
-      </TouchableOpacity>
-
-      {dropdownVisible && (
-        <View style={styles.dropdown}>
-          <TextInput
-            style={styles.input}
-            placeholder="Search by Name or ID"
-            value={searchText}
-            onChangeText={handleSearch}
-          />
-          {loading ? (
-            <ActivityIndicator size="small" color="#2A5866" />
-          ) : (
-            <FlatList
-              data={filteredCustomers}
-              keyExtractor={(item) => item.Customer_id.toString()}
-              renderItem={renderCustomer}
-              ListEmptyComponent={<Text style={styles.noResults}>No customers found</Text>}
-            />
-          )}
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Total Distributed:</Text>
+          <Text style={styles.summaryValue}>{totalDistributed.toFixed(2)} L</Text>
         </View>
-      )}
-
-      {selectedCustomer && (
-        <View style={styles.entrySection}>
-          <Text style={styles.sectionTitle}>
-            Selected: {selectedCustomer.Name} (ID: {selectedCustomer.Customer_id})
-          </Text>
-
-          <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
-            <Text style={date ? styles.inputText : styles.placeholderText}>
-              {date || 'Select Date'}
-            </Text>
-          </TouchableOpacity>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={selectedDate}
-              mode="date"
-              display="default"
-              onChange={onDateChange}
-            />
-          )}
-
+        <View style={styles.controlsContainer}>
           <TextInput
-            style={styles.input}
-            placeholder="Milk Quantity (in Litres)"
-            keyboardType="numeric"
-            value={milkQuantity}
-            onChangeText={setMilkQuantity}
+            style={styles.searchInput}
+            placeholder="Search by Name or ID"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
-
-          <View style={styles.buttonContainer}>
+          <View style={styles.datePickerContainer}>
             <TouchableOpacity
-              style={[styles.button, (loading || !hasAssignment) && styles.buttonDisabled]}
-              onPress={handleAddEntry}
-              disabled={loading || !hasAssignment}
+              onPress={() => setShowDatePicker(true)}
+              style={[styles.datePickerButton, showAllDates && styles.datePickerButtonDisabled]}
+              disabled={showAllDates} // Disable date picker when All Dates is active
             >
-              <Text style={styles.buttonText}>
-                {loading ? 'Adding...' : 'Add Entry'}
+              <Icon name="calendar" size={20} color={showAllDates ? '#888' : '#0288D1'} />
+              <Text style={[styles.datePickerText, showAllDates && styles.datePickerTextDisabled]}>
+                {date || 'Select Date'}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.clearButton} onPress={clearForm}>
-              <Text style={styles.clearButtonText}>Clear</Text>
+            <TouchableOpacity
+              onPress={toggleShowAllDates}
+              style={[styles.toggleButton, showAllDates && styles.toggleButtonActive]}
+            >
+              <Text style={[styles.toggleButtonText, showAllDates && styles.toggleButtonTextActive]}>
+                {showAllDates ? 'Single Date' : 'All Dates'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
-      )}
+        {showDatePicker && !showAllDates && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display="default"
+            onChange={onDateChange}
+          />
+        )}
+      </View>
 
-      <Text style={styles.heading}>Entries</Text>
-      {entries.length > 0 ? (
-        <FlatList
-          data={entries}
-          keyExtractor={(_, index) => index.toString()}
-          renderItem={renderEntry}
-        />
+      {loading || !sellerId ? (
+        <ActivityIndicator size="large" color="#0288D1" style={styles.loader} />
+      ) : paginatedData.length > 0 ? (
+        <>
+          <FlatList
+            data={paginatedData}
+            keyExtractor={(item, index) => `${item.Customer_id}-${item.Distribution_date}-${index}`}
+            renderItem={renderDistribution}
+            contentContainerStyle={styles.listContainer}
+          />
+          {paginatedData.length < filteredDistributions.length && (
+            <TouchableOpacity style={styles.loadMoreButton} onPress={loadMore}>
+              <Text style={styles.loadMoreText}>Load More</Text>
+            </TouchableOpacity>
+          )}
+        </>
       ) : (
-        <Text style={styles.noResults}>No entries yet</Text>
+        <View style={styles.noDataContainer}>
+          <Icon name="alert-circle-outline" size={40} color="#0288D1" />
+          <Text style={styles.noDataText}>
+            {showAllDates
+              ? `No distributions found for Seller ID ${sellerId}`
+              : `No distributions found for ${date}`}
+          </Text>
+        </View>
       )}
-
       <Toast />
-    </View>
+    </SafeAreaView>
   );
 };
 
+// Styles (updated to include disabled styles for date picker)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#FFF',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
-  heading: {
-    fontSize: 24,
+  headerTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#2A5866',
+    color: '#0288D1',
   },
-  refreshButton: {
-    backgroundColor: '#2A5866',
+  iconButton: {
     padding: 8,
     borderRadius: 8,
+    backgroundColor: '#E3F2FD',
   },
   summaryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 16,
-    elevation: 3,
+    margin: 16,
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
   },
   summaryTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2A5866',
+    fontWeight: '600',
+    color: '#0288D1',
     marginBottom: 12,
-  },
-  noAssignmentText: {
-    fontSize: 14,
-    color: '#D32F2F',
-    marginBottom: 8,
-    textAlign: 'center',
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   summaryLabel: {
     fontSize: 16,
-    color: '#546E7A',
+    color: '#555',
   },
   summaryValue: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#2A5866',
+    fontWeight: 'bold',
+    color: '#0288D1',
   },
-  dropdownToggle: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#B0BEC5',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: '#2A5866',
-  },
-  dropdown: {
-    borderWidth: 1,
-    borderColor: '#B0BEC5',
-    borderRadius: 8,
-    maxHeight: 200,
-    backgroundColor: '#FFFFFF',
-    padding: 8,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#B0BEC5',
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 6,
-    backgroundColor: '#FFFFFF',
-    fontSize: 16,
-    elevation: 1,
-  },
-  inputText: {
-    color: '#2A5866',
-  },
-  placeholderText: {
-    color: '#B0BEC5',
-  },
-  dropdownItem: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ECEFF1',
-  },
-  entrySection: {
-    padding: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2A5866',
-    marginBottom: 8,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  controlsContainer: {
     marginTop: 8,
   },
-  button: {
-    backgroundColor: '#2A5866',
-    padding: 12,
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
     borderRadius: 8,
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-  },
-  buttonDisabled: {
-    backgroundColor: '#B0BEC5',
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    padding: 10,
+    marginBottom: 12,
     fontSize: 16,
+    backgroundColor: '#F5F5F5',
   },
-  clearButton: {
-    backgroundColor: '#ECEFF1',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    flex: 1,
-  },
-  clearButtonText: {
-    color: '#2A5866',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  entryItem: {
+  datePickerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#FFFFFF',
+  },
+  datePickerButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#0288D1',
     borderRadius: 8,
-    marginBottom: 8,
-    elevation: 1,
+    padding: 12,
+    marginRight: 8,
+    backgroundColor: '#E3F2FD',
+  },
+  datePickerButtonDisabled: {
+    backgroundColor: '#ECEFF1',
+    borderColor: '#888',
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: '#0288D1',
+    marginLeft: 8,
+  },
+  datePickerTextDisabled: {
+    color: '#888',
+  },
+  toggleButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#ECEFF1',
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#0288D1',
+  },
+  toggleButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0288D1',
+  },
+  toggleButtonTextActive: {
+    color: '#FFF',
+  },
+  distributionCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 2,
   },
-  entryText: {
-    fontSize: 14,
-    color: '#2A5866',
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  noResults: {
+  customerName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0288D1',
+  },
+  cardSubText: {
     fontSize: 14,
-    color: '#B0BEC5',
+    color: '#555',
+    marginBottom: 4,
+  },
+  cardDetails: {
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    paddingTop: 8,
+    marginTop: 8,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 4,
+  },
+  listContainer: {
+    paddingBottom: 16,
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  noDataText: {
+    fontSize: 16,
+    color: '#0288D1',
     textAlign: 'center',
     marginTop: 8,
   },
+  loader: {
+    marginVertical: 16,
+  },
+  loadMoreButton: {
+    backgroundColor: '#0288D1',
+    borderRadius: 8,
+    padding: 12,
+    margin: 16,
+    alignItems: 'center',
+  },
+  loadMoreText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
 
-export default MilkSelling;
+export default CoustomerMilkAssingDataList;
