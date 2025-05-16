@@ -4,6 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
+import { API_CONFIG } from '../../../database-connect/Apichange';
 
 const SellerDetails = () => {
   const navigation = useNavigation();
@@ -17,7 +18,7 @@ const SellerDetails = () => {
   useEffect(() => {
     const fetchSellers = async () => {
       try {
-        const response = await axios.get('http://192.168.194.171/milk_dist_system/seller/seller.php', {
+        const response = await axios.get(API_CONFIG.fetchSeller, {
           headers: {
             'Content-Type': 'application/json',
           },

@@ -3,7 +3,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {NavigationContainer} from '@react-navigation/native';
 import HomeScreen from './Page/superAdmin/Home';
 import Coustomer from './Page/superAdmin/coustomer/Coustomer';
-import CustomerListScreen from './Page/superAdmin/coustomer/CustomerListScreen ';
+import CustomerListScreen from './Page/superAdmin/coustomer/CustomerListScreen';
 import CustomerDetailScreen from './Page/superAdmin/coustomer/CustomerDetailScreen';
 // import AddSeller from './Page/superAdmin/Seller/addSeller';
 import PaymentScreen from './Page/superAdmin/Payments/Payments';
@@ -15,12 +15,12 @@ import SellerDashboard from './Page/Seller Screen/SellerDashboard';
 import CustomerDashboard from './Page/Customer Screen/CustomerDashboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Settings } from 'react-native';
-import SettingScreen from './Page/Seller Screen/Settings/MilkSelling';
 import AddSeller from './Page/superAdmin/seller/addSeller';
 import SellerDetails from './Page/superAdmin/seller/SellerDetails';
 import MilkSelling from './Page/Seller Screen/Settings/MilkSelling';
 import CoustomerMilkAssingDataList from './Page/Seller Screen/Coustomer/CoustomerMilkAssingDataList';
-
+// import AddAddress from './Page/superAdmin/Address/AddAddress'
+import AddAddress from './Page/superAdmin/Address/Address.jsx';
 
 const Stack = createNativeStackNavigator();
 
@@ -57,6 +57,24 @@ if (initialRoute === null) return null; // Optional: splash loading
         <Stack.Screen
           name="Home"
           component={HomeScreen}
+          options={{
+            title: 'Dairy Dashboard',
+            headerStyle: {
+              backgroundColor: '#2A5866', // Primary color
+              elevation: 4,
+            },
+            headerTintColor: '#FFFFFF', // White text
+            headerTitleStyle: {
+              fontSize: 20,
+              fontWeight: '600',
+              letterSpacing: 1,
+            },
+          }}
+        />
+
+         <Stack.Screen
+          name="Address"
+          component={AddAddress}
           options={{
             title: 'Dairy Dashboard',
             headerStyle: {
@@ -202,7 +220,7 @@ if (initialRoute === null) return null; // Optional: splash loading
           name="seller details"
           component={SellerDetails}
           options={{
-            title: 'Customer List',
+            title: 'Seller List',
             headerStyle: {
               backgroundColor: '#2A5866',
               elevation: 4,

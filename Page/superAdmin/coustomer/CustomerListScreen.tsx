@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import fetchCustomers from '../../../database-connect/admin/customer/Featch'; // Updated import path
+import fetchCustomers from '../../../database-connect/admin/customer/Featch';
+// import deleteCustomer from '../../../database-connect/admin/customer/Delete'; // Uncomment when implemented
 
 const CustomerListScreen = () => {
   const navigation = useNavigation();
@@ -13,15 +14,21 @@ const CustomerListScreen = () => {
   const [visibleCustomers, setVisibleCustomers] = useState([]);
   const [totalMoney, setTotalMoney] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
   const itemsPerPage = 5;
 
+  // Define gradient colors to avoid null or invalid values
+  const gradientColors = ['#E6F0FA', '#FFFFFF'];
+
   useEffect(() => {
-    fetchCustomers(setCustomers, setTotalMoney, setFilteredCustomers, updateVisibleCustomers);
-  }, [fetchCustomers]);
+    setIsLoading(true);
+    fetchCustomers(setCustomers, setTotalMoney, setFilteredCustomers, updateVisibleCustomers)
+      .finally(() => setIsLoading(false));
+  }, []);
 
   useEffect(() => {
     const filtered = customers.filter(
-      (customer) =>
+      customer =>
         (customer.username?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
         (customer.phone || '').includes(searchQuery)
     );
@@ -36,7 +43,7 @@ const CustomerListScreen = () => {
     setVisibleCustomers(filtered.slice(startIndex, endIndex));
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = (id) => {
     Alert.alert(
       'Delete Customer',
       'Are you sure you want to delete this customer?',
@@ -44,18 +51,10 @@ const CustomerListScreen = () => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
-          onPress: async () => {
-            try {
-         
-              const updatedCustomers = customers.filter((customer) => customer.id !== id);
-              setCustomers(updatedCustomers);
-              setFilteredCustomers(updatedCustomers);
-              updateVisibleCustomers(updatedCustomers, 1);
-              Alert.alert('Success', 'Customer deleted successfully');
-            } catch (error) {
-              console.error('Error deleting customer:', error);
-              Alert.alert('Error', 'Failed to delete customer');
-            }
+          onPress: () => {
+            // Uncomment and implement deleteCustomer when ready
+            // deleteCustomer(id, setCustomers, setFilteredCustomers, updateVisibleCustomers);
+            Alert.alert('Info', 'Delete functionality not implemented yet.');
           },
         },
       ],
@@ -80,8 +79,8 @@ const CustomerListScreen = () => {
     <View style={styles.tableHeader}>
       <Text style={[styles.headerCell, { flex: 2 }]}>Name</Text>
       <Text style={[styles.headerCell, { flex: 2 }]}>Phone</Text>
-      <Text style={[styles.headerCell, { flex: 1 }]}>Milk</Text>
-      <Text style={[styles.headerCell, { flex: 1 }]}>Money</Text>
+      <Text style={[styles.headerCell, { flex: 2 }]}>Address</Text>
+      <Text style={[styles.headerCell, { flex: 1 }]}>Price (₹/L)</Text>
       <Text style={[styles.headerCell, { flex: 1 }]}>Actions</Text>
     </View>
   );
@@ -93,24 +92,13 @@ const CustomerListScreen = () => {
     >
       <Text style={[styles.cell, { flex: 2 }]}>{item.username}</Text>
       <Text style={[styles.cell, { flex: 2 }]}>{item.phone}</Text>
-      <Text style={[styles.cell, { flex: 1 }]}>{item.milkQuantity}</Text>
-      <Text style={[styles.cell, { flex: 1 }]}>₹{item.money.toFixed(2)}</Text>
+      <Text style={[styles.cell, { flex: 2 }]}>{item.address}</Text>
+      <Text style={[styles.cell, { flex: 1 }]}>₹{item.price.toFixed(2)}</Text>
       <View style={[styles.cell, styles.actionCell, { flex: 1 }]}>
-        <TouchableOpacity
-          onPress={(e) => {
-            e.stopPropagation();
-            handleEdit(item);
-          }}
-        >
+        <TouchableOpacity onPress={() => handleEdit(item)}>
           <Icon name="pencil" size={20} color="#4CAF50" />
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={(e) => {
-            e.stopPropagation();
-            handleDelete(item.id);
-          }}
-          style={styles.deleteButton}
-        >
+        <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteButton}>
           <Icon name="delete" size={20} color="#FF4444" />
         </TouchableOpacity>
       </View>
@@ -126,7 +114,6 @@ const CustomerListScreen = () => {
       >
         <Icon name="chevron-double-left" size={24} color={currentPage === 1 ? '#ccc' : '#fff'} />
       </TouchableOpacity>
-
       <TouchableOpacity
         style={[styles.navButton, currentPage === 1 && styles.disabledButton]}
         onPress={() => handlePageChange(currentPage - 1)}
@@ -134,16 +121,15 @@ const CustomerListScreen = () => {
       >
         <Icon name="chevron-left" size={24} color={currentPage === 1 ? '#ccc' : '#fff'} />
       </TouchableOpacity>
-
       <View style={styles.pageNumbers}>
         {Array.from({ length: totalPages }, (_, i) => i + 1)
           .filter(
-            (page) =>
+            page =>
               page === 1 ||
               page === totalPages ||
               (page >= currentPage - 1 && page <= currentPage + 1)
           )
-          .map((page) => (
+          .map(page => (
             <TouchableOpacity
               key={page}
               style={[styles.pageButton, currentPage === page && styles.activePageButton]}
@@ -155,7 +141,6 @@ const CustomerListScreen = () => {
             </TouchableOpacity>
           ))}
       </View>
-
       <TouchableOpacity
         style={[styles.navButton, currentPage === totalPages && styles.disabledButton]}
         onPress={() => handlePageChange(currentPage + 1)}
@@ -163,7 +148,6 @@ const CustomerListScreen = () => {
       >
         <Icon name="chevron-right" size={24} color={currentPage === totalPages ? '#ccc' : '#fff'} />
       </TouchableOpacity>
-
       <TouchableOpacity
         style={[styles.navButton, currentPage === totalPages && styles.disabledButton]}
         onPress={() => handlePageChange(totalPages)}
@@ -175,7 +159,7 @@ const CustomerListScreen = () => {
   );
 
   return (
-    <LinearGradient colors={['#E6F0FA', '#FFFFFF']} style={styles.container}>
+    <LinearGradient colors={gradientColors} style={styles.container}>
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Customer Dashboard</Text>
         <View style={styles.statsContainer}>
@@ -185,7 +169,7 @@ const CustomerListScreen = () => {
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statValue}>₹{totalMoney.toFixed(2)}</Text>
-            <Text style={styles.statLabel}>Total Revenue</Text>
+            <Text style={styles.statLabel}>Total Price/Liter</Text>
           </View>
         </View>
       </View>
@@ -198,15 +182,18 @@ const CustomerListScreen = () => {
           onChangeText={setSearchQuery}
         />
       </View>
-
       <View style={styles.tableContainer}>
         {renderHeader()}
-        <FlatList
-          data={visibleCustomers}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderCustomerItem}
-          ListEmptyComponent={<Text style={styles.emptyText}>No customers found</Text>}
-        />
+        {isLoading ? (
+          <ActivityIndicator size="large" color="#2A5866" style={styles.loader} />
+        ) : (
+          <FlatList
+            data={visibleCustomers}
+            keyExtractor={item => item.id}
+            renderItem={renderCustomerItem}
+            ListEmptyComponent={<Text style={styles.emptyText}>No customers found</Text>}
+          />
+        )}
         {filteredCustomers.length > 0 && renderPagination()}
       </View>
     </LinearGradient>
@@ -360,6 +347,9 @@ const styles = StyleSheet.create({
   },
   activePageText: {
     color: '#fff',
+  },
+  loader: {
+    marginVertical: 20,
   },
 });
 
