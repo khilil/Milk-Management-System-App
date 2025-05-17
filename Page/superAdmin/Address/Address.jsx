@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, FlatList, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -49,8 +49,7 @@ const AddressScreen = () => {
         if (response.status === 'success') {
           Alert.alert('Success', 'Address added successfully');
           setFormData({ address: '' });
-          // Refresh address list
-          await fetchAddresses(setAddresses, setAddresses, (data) => setAddresses(data));
+          await fetchAddresh(setAddresses, setAddresses, (data) => setAddresses(data));
         } else {
           Alert.alert('Error', response.message || 'Failed to add address');
         }
@@ -98,22 +97,71 @@ const AddressScreen = () => {
     );
   };
 
-  const renderHeader = () => (
-    <View style={styles.tableHeader}>
-      <Text style={[styles.headerCell, { flex: 3 }]}>Address</Text>
-      <Text style={[styles.headerCell, { flex: 1 }]}>Actions</Text>
+const renderHeader = () => (
+    <View style={[styles.tableHeader, {
+      backgroundColor: '#2A5866',
+      borderTopLeftRadius: 8,
+      borderTopRightRadius: 8,
+      paddingVertical: 12,
+      marginBottom: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+    }]}>
+      <Text style={[styles.headerCell, {
+        flex: 3,
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
+        textAlign: 'left',
+        paddingLeft: 16,
+      }]}>Address</Text>
+      <View style={{ width: 16 }} /> {/* Spacer */}
+      <Text style={[styles.headerCell, {
+        flex: 1,
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
+        textAlign: 'center',
+      }]}>Actions</Text>
     </View>
-  );
+);
 
   const renderAddressItem = ({ item }) => (
-    <TouchableOpacity style={styles.tableRow}>
-      <Text style={[styles.cell, { flex: 3 }]}>{item.address}</Text>
-      <View style={[styles.cell, styles.actionCell, { flex: 1 }]}>
-        <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteButton}>
-          <Icon name="delete" size={20} color="#FF4444" />
+    <View style={{
+      flexDirection: 'row',
+      backgroundColor: '#FFFFFF',
+      borderRadius: 8,
+      marginBottom: 8,
+      padding: 16,
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    }}>
+      <Text style={[styles.cell, {
+        flex: 3,
+        color: '#333',
+        fontSize: 14,
+        lineHeight: 20,
+      }]}>{item.address}</Text>
+      <View style={[styles.cell, styles.actionCell, {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }]}>
+        <TouchableOpacity
+          onPress={() => handleDelete(item.id)}
+          style={[styles.deleteButton, {
+            padding: 6,
+            backgroundColor: '#FF4444',
+            borderRadius: 10,
+          }]}
+        >
+          <Icon name="delete" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -148,15 +196,18 @@ const AddressScreen = () => {
           </LinearGradient>
         </TouchableOpacity>
 
-        <View style={styles.tableContainer}>
+        <View style={[styles.tableContainer, { marginTop: 24 }]}>
           {renderHeader()}
           {isLoading ? (
             <ActivityIndicator
-             size="large" color="#2A5866" style={styles.loader} />
+              size="large"
+              color="#2A5866"
+              style={styles.loader}
+            />
           ) : (
             <FlatList
               data={addresses}
-              keyExtractor={item => item.id}
+              keyExtractor={item => item.id.toString()}
               renderItem={renderAddressItem}
               ListEmptyComponent={<Text style={styles.emptyText}>No addresses found</Text>}
               scrollEnabled={false}
