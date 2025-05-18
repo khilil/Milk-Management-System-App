@@ -2,10 +2,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_CONFIG } from '../../Apichange';
 
-// API base URL
 const API_BASE_URL = API_CONFIG.sellermilkdistrubiute;
 
-// Create Axios instance
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -13,7 +11,6 @@ const apiClient = axios.create({
   },
 });
 
-// Request interceptor to add token
 apiClient.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem('token');
@@ -25,10 +22,13 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Fetch all customers
-export const fetchCustomers = async () => {
+// Fetch all customers, optionally filtered by address IDs
+export const fetchCustomers = async (addressIds = []) => {
   try {
-    const response = await apiClient.get('?path=customers');
+    const query = addressIds.length > 0 
+      ? `?path=customers&address_ids=${addressIds.join(',')}` 
+      : '?path=customers';
+    const response = await apiClient.get(query);
     if (response.data.status === 'success') {
       return response.data.data;
     } else {
