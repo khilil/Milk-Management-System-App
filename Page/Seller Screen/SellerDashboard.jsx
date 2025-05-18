@@ -9,7 +9,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 const features = [
   { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Coustomer'  },
   // { id: '2', name: 'Add Seller', icon: 'account-group', color: '#e67e22', screen: 'AddSeller' },
-  { id: '2', name: 'Select Area', icon: 'address-book', color: '#34495e' ,screen: 'addressSelect'},//! change kr va nu ch 
+  // <AntDesign name="enviromento" size={20} color="#FFFFFF" />
+  { id: '2', name: 'Select Area', icon: 'enviromento', color: '#34495e' ,screen: 'addressSelect'},//! change kr va nu ch 
   { id: '3', name: 'Coustomer Milk Data', icon: 'cup-water', color: '#2ecc71' ,screen: 'CoustomerMilkAssingDataList'},//! change kr va nu ch 
   { id: '4', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments'},
   // { id: '5', name: 'Daily Reports', icon: 'chart-bar', color: '#1abc9c', screen: 'MonthlyReports' },

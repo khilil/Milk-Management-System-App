@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,10 @@ import {
   ActivityIndicator,
   SafeAreaView,
   TextInput,
+  RefreshControl,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Icon from 'react-native-vector-icons/Ionicons'; // Switched to Ionicons for cleaner look
 import DateTimePicker from '@react-native-community/datetimepicker';
-import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchDistributionDetails } from '../../../database-connect/seller-screen/Coustomer/track-milk-data-coustomer';
@@ -20,9 +20,9 @@ import { fetchDistributionDetails } from '../../../database-connect/seller-scree
 const CoustomerMilkAssingDataList = () => {
   const navigation = useNavigation();
 
-  // Initialize date to today's date
+  // Initialize state
   const today = new Date();
-  const formattedToday = today.toISOString().split('T')[0]; // e.g., '2025-05-03'
+  const formattedToday = today.toISOString().split('T')[0];
 
   const [date, setDate] = useState(formattedToday);
   const [selectedDate, setSelectedDate] = useState(today);
@@ -31,12 +31,14 @@ const CoustomerMilkAssingDataList = () => {
   const [filteredDistributions, setFilteredDistributions] = useState([]);
   const [totalDistributed, setTotalDistributed] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAllDates, setShowAllDates] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCards, setExpandedCards] = useState({});
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState('date-desc'); // New: Sort option
   const itemsPerPage = 10;
-  const [sellerId, setSellerId] = useState(null); // State for sellerId
+  const [sellerId, setSellerId] = useState(null);
 
   // Fetch sellerId from AsyncStorage
   useEffect(() => {
@@ -44,67 +46,85 @@ const CoustomerMilkAssingDataList = () => {
       try {
         const userId = await AsyncStorage.getItem('userId');
         if (userId) {
-          setSellerId(parseInt(userId)); // Convert to integer
+          setSellerId(parseInt(userId));
         } else {
-          Toast.show({
-            type: 'error',
-            text1: 'Error',
-            text2: 'Seller ID not found. Please log in again.',
-          });
-          navigation.navigate('Login'); // Redirect to login if no sellerId
+          alert('Seller ID not found. Please log in again.');
+          navigation.navigate('Login');
         }
       } catch (error) {
-        Toast.show({
-          type: 'error',
-          text1: 'Error',
-          text2: 'Failed to load seller ID.',
-        });
+        alert('Failed to load seller ID.');
       }
     };
     getSellerId();
   }, []);
 
-  // Fetch data when sellerId, date, or showAllDates changes
+  // Load cached data for offline support
   useEffect(() => {
-    if (!sellerId) return; // Wait until sellerId is available
-
-    const loadData = async () => {
-      setLoading(true);
+    const loadCachedData = async () => {
       try {
-        const distData = await fetchDistributionDetails(showAllDates ? '' : date, sellerId);
-        setDistributions(distData);
-        setFilteredDistributions(distData);
+        const cached = await AsyncStorage.getItem(`distributions_${sellerId}_${date}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setDistributions(parsed);
+          setFilteredDistributions(parsed);
+        }
       } catch (error) {
-        const errorMessage = error.message || 'Failed to load data';
-        Toast.show({
-          type: 'error',
-          text1: 'Error',
-          text2: errorMessage,
-          onPress: () => loadData(),
-        });
-      } finally {
-        setLoading(false);
+        console.error('Failed to load cached data:', error);
       }
     };
-    loadData();
+    if (sellerId) loadCachedData();
+  }, [sellerId, date]);
+
+  // Fetch data
+  const loadData = useCallback(async () => {
+    if (!sellerId) return;
+    setLoading(true);
+    try {
+      const distData = await fetchDistributionDetails(showAllDates ? '' : date, sellerId);
+      setDistributions(distData);
+      setFilteredDistributions(distData);
+      // Cache data
+      await AsyncStorage.setItem(`distributions_${sellerId}_${date}`, JSON.stringify(distData));
+    } catch (error) {
+      alert(`Failed to load data: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   }, [date, showAllDates, sellerId]);
 
-  // Calculate total distributed quantity whenever distributions or filteredDistributions change
   useEffect(() => {
-    const total = filteredDistributions.reduce((sum, item) => sum + parseFloat(item.Quantity || 0), 0);
-    setTotalDistributed(total);
-  }, [filteredDistributions]);
+    loadData();
+  }, [loadData]);
 
-  // Filter distributions based on search query
+  // Handle pull-to-refresh
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData().finally(() => setRefreshing(false));
+  }, [loadData]);
+
+  // Calculate total and sort distributions
   useEffect(() => {
-    const filtered = distributions.filter(
+    let sorted = [...distributions];
+    if (sortBy === 'date-desc') {
+      sorted.sort((a, b) => new Date(b.Distribution_date) - new Date(a.Distribution_date));
+    } else if (sortBy === 'date-asc') {
+      sorted.sort((a, b) => new Date(a.Distribution_date) - new Date(b.Distribution_date));
+    } else if (sortBy === 'quantity') {
+      sorted.sort((a, b) => parseFloat(b.Quantity) - parseFloat(a.Quantity));
+    } else if (sortBy === 'name') {
+      sorted.sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
+    }
+
+    const filtered = sorted.filter(
       (item) =>
         (item.Name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.Customer_id.toString().includes(searchQuery)
     );
     setFilteredDistributions(filtered);
-    setPage(1); // Reset page on search
-  }, [searchQuery, distributions]);
+    const total = filtered.reduce((sum, item) => sum + parseFloat(item.Quantity || 0), 0);
+    setTotalDistributed(total);
+    setPage(1);
+  }, [searchQuery, distributions, sortBy]);
 
   const onDateChange = (event, selected) => {
     setShowDatePicker(Platform.OS === 'ios');
@@ -112,14 +132,7 @@ const CoustomerMilkAssingDataList = () => {
       const formattedDate = selected.toISOString().split('T')[0];
       setSelectedDate(selected);
       setDate(formattedDate);
-      setShowAllDates(false); // Ensure All Dates is disabled when a date is selected
-    }
-  };
-
-  const toggleShowAllDates = () => {
-    setShowAllDates((prev) => !prev);
-    if (!showAllDates) {
-      setDate(formattedToday); // Reset to today when switching to All Dates
+      setShowAllDates(false);
     }
   };
 
@@ -144,12 +157,17 @@ const CoustomerMilkAssingDataList = () => {
     })}`;
 
     return (
-      <TouchableOpacity style={styles.distributionCard} onPress={() => toggleCard(id)}>
+      <TouchableOpacity
+        style={styles.distributionCard}
+        onPress={() => toggleCard(id)}
+        accessible
+        accessibilityLabel={`Distribution for ${item.Name || 'Customer'} on ${formattedDateTime}`}
+      >
         <View style={styles.cardHeader}>
           <Text style={styles.customerName}>
             {item.Name || 'Unknown'} (ID: {item.Customer_id})
           </Text>
-          <Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color="#0288D1" />
+          <Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={24} color="#F8FAFC" />
         </View>
         <Text style={styles.cardSubText}>{formattedDateTime}</Text>
         <Text style={styles.cardSubText}>Quantity: {parseFloat(item.Quantity).toFixed(2)} L</Text>
@@ -167,77 +185,115 @@ const CoustomerMilkAssingDataList = () => {
     );
   };
 
+  const renderSkeletonCard = () => (
+    <View style={[styles.distributionCard, styles.skeletonCard]}>
+      <View style={styles.cardHeader}>
+        <View style={styles.skeletonTextLarge} />
+        <View style={styles.skeletonIcon} />
+      </View>
+      <View style={styles.skeletonTextSmall} />
+      <View style={styles.skeletonTextSmall} />
+    </View>
+  );
+
   const paginatedData = filteredDistributions.slice(0, page * itemsPerPage);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
-          <Icon name="arrow-left" size={24} color="#0288D1" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Milk Distribution Tracker</Text>
         <TouchableOpacity
-          onPress={() => {
-            setLoading(true);
-            fetchDistributionDetails(showAllDates ? '' : date, sellerId)
-              .then((data) => {
-                setDistributions(data);
-                setFilteredDistributions(data);
-                Toast.show({
-                  type: 'success',
-                  text1: 'Success',
-                  text2: 'Data refreshed successfully',
-                });
-              })
-              .catch((error) => {
-                const errorMessage = error.message || 'Failed to refresh data';
-                Toast.show({
-                  type: 'error',
-                  text1: 'Error',
-                  text2: errorMessage,
-                });
-              })
-              .finally(() => setLoading(false));
-          }}
+          onPress={() => navigation.goBack()}
           style={styles.iconButton}
+          accessible
+          accessibilityLabel="Go back"
         >
-          <Icon name="refresh" size={24} color="#0288D1" />
+          <Icon name="arrow-back" size={24} color="#F8FAFC" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Milk Distribution</Text>
+        <TouchableOpacity
+          onPress={onRefresh}
+          style={styles.iconButton}
+          accessible
+          accessibilityLabel="Refresh data"
+        >
+          <Icon name="refresh" size={24} color="#F8FAFC" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>
-          {showAllDates ? `All Distributions (Seller ID ${sellerId || 'N/A'})` : `Distribution for ${date}`}
+          {showAllDates ? `All Distributions` : `Distributions for ${date}`}
         </Text>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Total Distributed:</Text>
           <Text style={styles.summaryValue}>{totalDistributed.toFixed(2)} L</Text>
         </View>
         <View style={styles.controlsContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by Name or ID"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          <View style={styles.datePickerContainer}>
+          <View style={styles.searchContainer}>
+            <Icon name="search" size={20} color="#6B7280" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by Name or ID"
+              placeholderTextColor="#6B7280"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              accessible
+              accessibilityLabel="Search distributions"
+            />
+          </View>
+          <View style={styles.segmentedControl}>
             <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              style={[styles.datePickerButton, showAllDates && styles.datePickerButtonDisabled]}
-              disabled={showAllDates} // Disable date picker when All Dates is active
+              style={[styles.segmentButton, !showAllDates && styles.segmentButtonActive]}
+              onPress={() => setShowAllDates(false)}
             >
-              <Icon name="calendar" size={20} color={showAllDates ? '#888' : '#0288D1'} />
-              <Text style={[styles.datePickerText, showAllDates && styles.datePickerTextDisabled]}>
-                {date || 'Select Date'}
+              <Text
+                style={[styles.segmentText, !showAllDates && styles.segmentTextActive]}
+                accessible
+                accessibilityLabel="Show single date"
+              >
+                Single Date
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={toggleShowAllDates}
-              style={[styles.toggleButton, showAllDates && styles.toggleButtonActive]}
+              style={[styles.segmentButton, showAllDates && styles.segmentButtonActive]}
+              onPress={() => setShowAllDates(true)}
             >
-              <Text style={[styles.toggleButtonText, showAllDates && styles.toggleButtonTextActive]}>
-                {showAllDates ? 'Single Date' : 'All Dates'}
+              <Text
+                style={[styles.segmentText, showAllDates && styles.segmentTextActive]}
+                accessible
+                accessibilityLabel="Show all dates"
+              >
+                All Dates
               </Text>
+            </TouchableOpacity>
+          </View>
+          {!showAllDates && (
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              style={styles.datePickerButton}
+              accessible
+              accessibilityLabel="Select date"
+            >
+              <Icon name="calendar" size={20} color="#F8FAFC" />
+              <Text style={styles.datePickerText}>{date}</Text>
+            </TouchableOpacity>
+          )}
+          <View style={styles.sortContainer}>
+            <Text style={styles.sortLabel}>Sort by:</Text>
+            <TouchableOpacity
+              style={styles.sortButton}
+              onPress={() =>
+                setSortBy((prev) =>
+                  prev === 'date-desc' ? 'date-asc' : prev === 'date-asc' ? 'quantity' : prev === 'quantity' ? 'name' : 'date-desc'
+                )
+              }
+              accessible
+              accessibilityLabel="Change sort order"
+            >
+              <Text style={styles.sortText}>
+                {sortBy === 'date-desc' ? 'Date (Newest)' : sortBy === 'date-asc' ? 'Date (Oldest)' : sortBy === 'quantity' ? 'Quantity' : 'Name'}
+              </Text>
+              <Icon name="swap-vertical" size={20} color="#F8FAFC" />
             </TouchableOpacity>
           </View>
         </View>
@@ -245,14 +301,19 @@ const CoustomerMilkAssingDataList = () => {
           <DateTimePicker
             value={selectedDate}
             mode="date"
-            display="default"
+            display={Platform.OS === 'ios' ? 'inline' : 'default'}
             onChange={onDateChange}
           />
         )}
       </View>
 
-      {loading || !sellerId ? (
-        <ActivityIndicator size="large" color="#0288D1" style={styles.loader} />
+      {loading && !refreshing ? (
+        <FlatList
+          data={[1, 2, 3]}
+          renderItem={renderSkeletonCard}
+          keyExtractor={(item) => `skeleton-${item}`}
+          contentContainerStyle={styles.listContainer}
+        />
       ) : paginatedData.length > 0 ? (
         <>
           <FlatList
@@ -260,33 +321,49 @@ const CoustomerMilkAssingDataList = () => {
             keyExtractor={(item, index) => `${item.Customer_id}-${item.Distribution_date}-${index}`}
             renderItem={renderDistribution}
             contentContainerStyle={styles.listContainer}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2A5866" />
+            }
           />
           {paginatedData.length < filteredDistributions.length && (
-            <TouchableOpacity style={styles.loadMoreButton} onPress={loadMore}>
+            <TouchableOpacity
+              style={styles.loadMoreButton}
+              onPress={loadMore}
+              accessible
+              accessibilityLabel="Load more distributions"
+            >
               <Text style={styles.loadMoreText}>Load More</Text>
             </TouchableOpacity>
           )}
         </>
       ) : (
         <View style={styles.noDataContainer}>
-          <Icon name="alert-circle-outline" size={40} color="#0288D1" />
+          <Icon name="alert-circle-outline" size={48} color="#2A5866" />
           <Text style={styles.noDataText}>
             {showAllDates
               ? `No distributions found for Seller ID ${sellerId}`
               : `No distributions found for ${date}`}
           </Text>
+          {!showAllDates && (
+            <TouchableOpacity
+              style={styles.tryAnotherButton}
+              onPress={() => setShowDatePicker(true)}
+              accessible
+              accessibilityLabel="Try another date"
+            >
+              <Text style={styles.tryAnotherText}>Try Another Date</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
-      <Toast />
     </SafeAreaView>
   );
 };
 
-// Styles (updated to include disabled styles for date picker)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: '#F8FAFC', // Off-white background
   },
   header: {
     flexDirection: 'row',
@@ -294,119 +371,168 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    backgroundColor: '#2A5866', // Theme color
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0288D1',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#F8FAFC',
+    fontFamily: 'Roboto', // Ensure font is available or use default
   },
   iconButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#E3F2FD',
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: '#4A8294', // Lighter teal
   },
   summaryCard: {
     backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     margin: 16,
-    elevation: 4,
+    elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   summaryTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#0288D1',
-    marginBottom: 12,
+    color: '#2A5866',
+    marginBottom: 16,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   summaryLabel: {
     fontSize: 16,
-    color: '#555',
+    color: '#6B7280',
+    fontWeight: '500',
   },
   summaryValue: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#0288D1',
+    fontWeight: '700',
+    color: '#2A5866',
   },
   controlsContainer: {
     marginTop: 8,
   },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
-    fontSize: 16,
-    backgroundColor: '#F5F5F5',
-  },
-  datePickerContainer: {
+  searchContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    marginBottom: 16,
+  },
+  searchIcon: {
+    marginLeft: 12,
+  },
+  searchInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 16,
+    color: '#1A3A4A',
+    backgroundColor: 'transparent',
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+  },
+  segmentButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  segmentButtonActive: {
+    backgroundColor: '#2A5866',
+  },
+  segmentText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  segmentTextActive: {
+    color: '#F8FAFC',
   },
   datePickerButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#0288D1',
-    borderRadius: 8,
-    padding: 12,
-    marginRight: 8,
-    backgroundColor: '#E3F2FD',
-  },
-  datePickerButtonDisabled: {
-    backgroundColor: '#ECEFF1',
-    borderColor: '#888',
+    backgroundColor: '#2A5866',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
   },
   datePickerText: {
     fontSize: 16,
-    color: '#0288D1',
+    color: '#F8FAFC',
     marginLeft: 8,
+    fontWeight: '500',
   },
-  datePickerTextDisabled: {
-    color: '#888',
-  },
-  toggleButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#ECEFF1',
+  sortContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  toggleButtonActive: {
-    backgroundColor: '#0288D1',
+  sortLabel: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
   },
-  toggleButtonText: {
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4A8294',
+    borderRadius: 12,
+    padding: 10,
+  },
+  sortText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#0288D1',
-  },
-  toggleButtonTextActive: {
-    color: '#FFF',
+    color: '#F8FAFC',
+    marginRight: 8,
+    fontWeight: '500',
   },
   distributionCard: {
     backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 16,
     marginHorizontal: 16,
     marginBottom: 12,
     padding: 16,
-    elevation: 3,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  skeletonCard: {
+    opacity: 0.6,
+  },
+  skeletonTextLarge: {
+    width: '60%',
+    height: 20,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  skeletonTextSmall: {
+    width: '40%',
+    height: 16,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  skeletonIcon: {
+    width: 24,
+    height: 24,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 12,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -415,25 +541,26 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   customerName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#0288D1',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A3A4A',
   },
   cardSubText: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 4,
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 6,
   },
   cardDetails: {
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    paddingTop: 8,
-    marginTop: 8,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 12,
+    marginTop: 12,
   },
   detailText: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 4,
+    fontSize: 16,
+    color: '#1A3A4A',
+    marginBottom: 6,
+    fontWeight: '500',
   },
   listContainer: {
     paddingBottom: 16,
@@ -442,27 +569,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
   },
   noDataText: {
-    fontSize: 16,
-    color: '#0288D1',
+    fontSize: 18,
+    color: '#2A5866',
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 12,
+    fontWeight: '500',
   },
-  loader: {
-    marginVertical: 16,
+  tryAnotherButton: {
+    backgroundColor: '#2A5866',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 16,
+  },
+  tryAnotherText: {
+    fontSize: 16,
+    color: '#F8FAFC',
+    fontWeight: '600',
   },
   loadMoreButton: {
-    backgroundColor: '#0288D1',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: '#2A5866',
+    borderRadius: 12,
+    padding: 14,
     margin: 16,
     alignItems: 'center',
   },
   loadMoreText: {
-    color: '#FFF',
     fontSize: 16,
+    color: '#F8FAFC',
     fontWeight: '600',
   },
 });

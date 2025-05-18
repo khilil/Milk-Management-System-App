@@ -898,4 +898,3 @@ const styles = StyleSheet.create({
 });
 
 export default MilkSelling;
-
