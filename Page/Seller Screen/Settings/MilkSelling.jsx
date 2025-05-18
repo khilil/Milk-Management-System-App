@@ -566,7 +566,7 @@ const MilkSelling = () => {
           </View>
         </View>
       </Modal>
-
+{/* E:\react_first\Milk-Management-System-App\Page\Seller Screen\Settings\MilkSelling.jsx  */}
       <Toast />
     </View>
   );
