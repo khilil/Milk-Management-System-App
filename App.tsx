@@ -220,7 +220,7 @@ export default function App() {
           name="MilkAssigning"
           component={MilkAssigning}
           options={{
-            title: 'Customer List',
+            title: 'Milk Assigning',
             headerStyle: {
               backgroundColor: '#2A5866',
               elevation: 4,

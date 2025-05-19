@@ -10,11 +10,11 @@ const features = [
   { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Coustomer'  },
   // { id: '2', name: 'Add Seller', icon: 'account-group', color: '#e67e22', screen: 'AddSeller' },
   // <AntDesign name="enviromento" size={20} color="#FFFFFF" />
-  { id: '2', name: 'Select Area', icon: 'enviromento', color: '#34495e' ,screen: 'addressSelect'},//! change kr va nu ch 
+  { id: '2', name: 'Select Area', icon: 'map', color: '#34495e' ,screen: 'addressSelect'},//! change kr va nu ch 
   { id: '3', name: 'Coustomer Milk Data', icon: 'cup-water', color: '#2ecc71' ,screen: 'CoustomerMilkAssingDataList'},//! change kr va nu ch 
   { id: '4', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments'},
   // { id: '5', name: 'Daily Reports', icon: 'chart-bar', color: '#1abc9c', screen: 'MonthlyReports' },
-  { id: '5', name: 'Milk Assiging', icon: 'history', color: '#e74c3c', screen: 'MilkAssigning' },
+  { id: '5', name: 'Milk Assiging', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
   // { id: '7', name: 'Seller Details', icon: 'bell', color: '#f1c40f', screen: 'seller details' },
   // { id: '8', name: 'Customer Feedback', icon: 'message-text', color: '#34495e' },
   { id: '6', name: 'Milk Selling', icon: 'beer-outline', color: '#7f8c8d', screen: "Milk selling" },
