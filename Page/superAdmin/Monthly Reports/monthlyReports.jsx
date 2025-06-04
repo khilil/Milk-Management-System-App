@@ -1,292 +1,520 @@
-import React, {useState, useRef} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  FlatList,
   StyleSheet,
-  Button,
-  ScrollView,
-  Dimensions,
+  ActivityIndicator,
   TouchableOpacity,
+  TextInput,
+  Alert,
+  ScrollView,
 } from 'react-native';
-import {BarChart} from 'react-native-chart-kit';
-
-const screenWidth = Dimensions.get('window').width;
-
-const monthlyData = {
-  April: {
-    litres: [10, 20, 15, 30, 25, 18, 22, 15, 12, 14, 18, 20, 22, 25, 18, 10, 9, 19, 17, 24, 21, 14, 18, 15, 12, 13, 15, 17, 19, 21],
-    pricePerLitre: 20,
-  },
-  March: {
-    litres: [8, 18, 14, 28, 22, 16, 20, 15, 12, 13, 17, 19, 21, 23, 16, 12, 22, 18, 26, 20, 15, 19, 15, 12, 14, 16, 18, 20, 23, 10, 5],
-    pricePerLitre: 18,
-  },
-  February: {
-    litres: [12, 22, 18, 26, 20, 15, 19, 15, 12, 14, 16, 18, 20, 22, 15],
-    pricePerLitre: 19,
-  },
-  January: {
-    litres: [9, 19, 17, 24, 21, 14, 18, 15, 12, 13, 15, 17, 19, 21, 14, 10],
-    pricePerLitre: 17,
-  },
-};
-
-const getTotal = (litres, pricePerLitre) => {
-  const totalLitres = litres.reduce((sum, val) => sum + val, 0);
-  const totalRevenue = totalLitres * pricePerLitre;
-  return {totalLitres, totalRevenue};
-};
+import DateTimePicker from '@react-native-community/datetimepicker';
+import moment from 'moment';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import * as Animatable from 'react-native-animatable';
+import Modal from 'react-native-modal';
+import { getMilkDeliveryReport } from '../../../database-connect/admin/getDistributeMilkData/getDistributeMilkData';
 
 const MonthlyReports = () => {
-  const months = Object.keys(monthlyData);
-  const [selectedMonth, setSelectedMonth] = useState(months[0]);
-  const [chartData, setChartData] = useState(monthlyData[months[0]].litres);
-  const [pricePerLitre, setPricePerLitre] = useState(
-    monthlyData[months[0]].pricePerLitre,
-  );
-  const {totalLitres, totalRevenue} = getTotal(chartData, pricePerLitre);
-  const scrollViewRef = useRef();
+  const [deliveries, setDeliveries] = useState([]);
+  const [filteredDeliveries, setFilteredDeliveries] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('date'); // Options: 'date', 'quantity', 'customer'
+  const [selectedDelivery, setSelectedDelivery] = useState(null);
+  const [isModalVisible, setModalVisible] = useState(false);
 
-  const showCurrentMonth = () => {
-    setSelectedMonth(months[0]);
-    updateData(months[0]);
-    scrollToStart();
-  };
-
-  const showPreviousMonth = () => {
-    if (months.length > 1) {
-      setSelectedMonth(months[1]);
-      updateData(months[1]);
-      scrollToStart();
+  // Fetch deliveries from API
+  const fetchDeliveries = async (date) => {
+    setLoading(true);
+    try {
+      const formattedDate = moment(date).format('YYYY-MM-DD');
+      const result = await getMilkDeliveryReport(formattedDate);
+      if (result.status === 'success') {
+        setDeliveries(result.data);
+        setFilteredDeliveries(result.data);
+      } else {
+        Alert.alert('Error', result.message);
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const updateData = month => {
-    setChartData(monthlyData[month].litres);
-    setPricePerLitre(monthlyData[month].pricePerLitre);
+  // Fetch today's deliveries on component mount
+  useEffect(() => {
+    fetchDeliveries(selectedDate);
+  }, []);
+
+  // Handle date change
+  const handleDateChange = (event, date) => {
+    setShowDatePicker(false);
+    if (date) {
+      setSelectedDate(date);
+      fetchDeliveries(date);
+      setSearchQuery('');
+      setSortBy('date');
+    }
   };
 
-  const scrollToStart = () => {
-    scrollViewRef.current?.scrollTo({x: 0, animated: true});
+  // Handle search
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+    const filtered = deliveries.filter(
+      (item) =>
+        item.customer_name.toLowerCase().includes(query.toLowerCase()) ||
+        item.seller_name.toLowerCase().includes(query.toLowerCase())
+    );
+    setFilteredDeliveries(filtered);
   };
 
-  // Calculate chart width based on number of data points
-  const chartWidth = Math.max(screenWidth, chartData.length * 60);
+  // Handle sorting
+  const handleSort = (type) => {
+    setSortBy(type);
+    const sorted = [...filteredDeliveries].sort((a, b) => {
+      if (type === 'quantity') {
+        return b.quantity - a.quantity;
+      } else if (type === 'customer') {
+        return a.customer_name.localeCompare(b.customer_name);
+      } else {
+        return new Date(b.date_time) - new Date(a.date_time);
+      }
+    });
+    setFilteredDeliveries(sorted);
+  };
+
+  // Handle row click to open modal
+  const handleRowClick = (delivery) => {
+    setSelectedDelivery(delivery);
+    setModalVisible(true);
+  };
+
+  // Calculate dashboard metrics
+  const totalLiters = filteredDeliveries.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCost = filteredDeliveries.reduce(
+    (sum, item) => sum + item.quantity * item.customer_price,
+    0
+  );
+  const deliveryCount = filteredDeliveries.length;
+
+  // Render table header
+  const renderTableHeader = () => (
+    <View style={styles.tableHeader}>
+      <Text style={[styles.tableHeaderText, { flex: 1.5 }]}>Time</Text>
+      <Text style={[styles.tableHeaderText, { flex: 2 }]}>Customer</Text>
+      <Text style={[styles.tableHeaderText, { flex: 2 }]}>Seller</Text>
+      <Text style={[styles.tableHeaderText, { flex: 1 }]}>Qty (L)</Text>
+      <Text style={[styles.tableHeaderText, { flex: 2 }]}>Address</Text>
+    </View>
+  );
+
+  // Render each table row
+  const renderTableRow = ({ item, index }) => (
+    <TouchableOpacity
+      onPress={() => handleRowClick(item)}
+      style={[
+        styles.tableRow,
+        { backgroundColor: index % 2 === 0 ? '#FFF' : '#F8FAFC' },
+      ]}
+      activeOpacity={0.7}
+    >
+      <Text style={[styles.tableCell, { flex: 1.5 }]}>
+        {moment(item.date_time).format('hh:mm A')}
+      </Text>
+      <Text style={[styles.tableCell, { flex: 2 }]} numberOfLines={1}>
+        {item.customer_name}
+      </Text>
+      <Text style={[styles.tableCell, { flex: 2 }]} numberOfLines={1}>
+        {item.seller_name}
+      </Text>
+      <Text style={[styles.tableCell, { flex: 1 }]}>{item.quantity.toFixed(2)}</Text>
+      <Text style={[styles.tableCell, { flex: 2 }]} numberOfLines={1}>
+        {item.customer_address}
+      </Text>
+    </TouchableOpacity>
+  );
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.title}>Monthly Reports</Text>
+    <View style={styles.container}>
+      {/* Header */}
+      <Text style={styles.header}>Milk Delivery Dashboard</Text>
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[
-            styles.monthButton,
-            selectedMonth === months[0] && styles.activeButton,
-          ]}
-          onPress={showCurrentMonth}>
-          <Text
-            style={[
-              styles.buttonText,
-              selectedMonth === months[0] && styles.activeButtonText,
-            ]}>
-            This Month
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.monthButton,
-            selectedMonth === months[1] && styles.activeButton,
-            months.length < 2 && styles.disabledButton,
-          ]}
-          onPress={showPreviousMonth}
-          disabled={months.length < 2}>
-          <Text
-            style={[
-              styles.buttonText,
-              selectedMonth === months[1] && styles.activeButtonText,
-            ]}>
-            Previous Month
-          </Text>
-        </TouchableOpacity>
+      {/* Dashboard Summary */}
+      <View style={styles.summaryContainer}>
+        <Animatable.View animation="fadeIn" duration={500} style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>Total Deliveries</Text>
+          <Text style={styles.summaryValue}>{deliveryCount}</Text>
+        </Animatable.View>
+        <Animatable.View animation="fadeIn" duration={500} delay={100} style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>Total Liters</Text>
+          <Text style={styles.summaryValue}>{totalLiters.toFixed(2)} L</Text>
+        </Animatable.View>
+        <Animatable.View animation="fadeIn" duration={500} delay={200} style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>Total Amount</Text>
+          <Text style={styles.summaryValue}>₹{totalCost.toFixed(2)}</Text>
+        </Animatable.View>
       </View>
 
-      <Text style={styles.chartTitle}>Milk Collection - {selectedMonth}</Text>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={true}
-        ref={scrollViewRef}
-        style={styles.chartScrollView}>
-        <BarChart
-          data={{
-            labels: chartData.map((_, index) => (index + 1).toString()),
-            datasets: [{data: chartData}],
-          }}
-          width={chartWidth}
-          height={420}
-          // yAxisSuffix="L"
-          fromZero
-          chartConfig={chartConfig}
-          style={styles.chartStyle}
-          showBarTops={true}
-          withCustomBarColorFromData={false}
-          flatColor={false}
-          withInnerLines={true}
-          withVerticalLabels={true}
-          withHorizontalLabels={true}
-          withAnimation={true}
-          animationDuration={2000}
-          segments={7}
+      {/* Date Picker */}
+      <TouchableOpacity
+        style={styles.dateButton}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Icon name="calendar-today" size={20} color="#FFF" style={styles.icon} />
+        <Text style={styles.dateButtonText}>
+          {moment(selectedDate).format('DD-MM-YYYY')}
+        </Text>
+      </TouchableOpacity>
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate}
+          mode="date"
+          display="default"
+          onChange={handleDateChange}
         />
-      </ScrollView>
+      )}
 
-      <View style={styles.statsContainer}>
-        <View style={styles.statBox}>
-          <Text style={styles.statValue}>{totalLitres} L</Text>
-          <Text style={styles.statLabel}>Total Milk</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statValue}>₹{totalRevenue}</Text>
-          <Text style={styles.statLabel}>Total Revenue</Text>
-        </View>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Icon name="search" size={20} color="#2A5866" style={styles.icon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by Customer or Seller"
+          placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={handleSearch}
+        />
       </View>
-    </ScrollView>
+
+      {/* Sort Buttons */}
+      <View style={styles.sortContainer}>
+        <TouchableOpacity
+          style={[styles.sortButton, sortBy === 'date' && styles.sortButtonActive]}
+          onPress={() => handleSort('date')}
+        >
+          <Text style={[styles.sortButtonText, sortBy === 'date' && styles.sortButtonTextActive]}>
+            Time
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.sortButton, sortBy === 'quantity' && styles.sortButtonActive]}
+          onPress={() => handleSort('quantity')}
+        >
+          <Text
+            style={[styles.sortButtonText, sortBy === 'quantity' && styles.sortButtonTextActive]}
+          >
+            Quantity
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.sortButton, sortBy === 'customer' && styles.sortButtonActive]}
+          onPress={() => handleSort('customer')}
+        >
+          <Text
+            style={[styles.sortButtonText, sortBy === 'customer' && styles.sortButtonTextActive]}
+          >
+            Customer
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Table */}
+      {loading ? (
+        <ActivityIndicator size="large" color="#2A5866" style={styles.loader} />
+      ) : filteredDeliveries.length === 0 ? (
+        <Text style={styles.noDataText}>No deliveries found for this date</Text>
+      ) : (
+        <View style={styles.tableContainer}>
+          {renderTableHeader()}
+          <FlatList
+            data={filteredDeliveries}
+            renderItem={renderTableRow}
+            keyExtractor={(item) => item.delivery_id.toString()}
+            contentContainerStyle={styles.list}
+            initialNumToRender={20}
+            maxToRenderPerBatch={20}
+            windowSize={21}
+          />
+        </View>
+      )}
+
+      {/* Modal for Full Details */}
+      <Modal
+        isVisible={isModalVisible}
+        onBackdropPress={() => setModalVisible(false)}
+        style={styles.modal}
+      >
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Delivery Details</Text>
+          {selectedDelivery && (
+            <ScrollView style={styles.modalScroll}>
+              <View style={styles.modalRow}>
+                <Icon name="fingerprint" size={20} color="#2A5866" style={styles.modalIcon} />
+                <Text style={styles.modalText}>ID: {selectedDelivery.delivery_id}</Text>
+              </View>
+              <View style={styles.modalRow}>
+                <Icon name="event" size={20} color="#2A5866" style={styles.modalIcon} />
+                <Text style={styles.modalText}>
+                  Date & Time: {moment(selectedDelivery.date_time).format('DD-MM-YYYY hh:mm A')}
+                </Text>
+              </View>
+              <View style={styles.modalRow}>
+                <Icon name="water-drop" size={20} color="#2A5866" style={styles.modalIcon} />
+                <Text style={styles.modalText}>
+                  Quantity: {selectedDelivery.quantity.toFixed(2)} Liters
+                </Text>
+              </View>
+              <View style={styles.modalRow}>
+                <Icon name="attach-money" size={20} color="#2A5866" style={styles.modalIcon} />
+                <Text style={styles.modalText}>
+                  Total Cost: ₹{(selectedDelivery.quantity * selectedDelivery.customer_price).toFixed(2)}
+                </Text>
+              </View>
+              <View style={styles.modalRow}>
+                <Icon name="person" size={20} color="#2A5866" style={styles.modalIcon} />
+                <Text style={styles.modalText}>
+                  Seller: {selectedDelivery.seller_name} ({selectedDelivery.vehicle_no})
+                </Text>
+              </View>
+              <View style={styles.modalRow}>
+                <Icon name="account-circle" size={20} color="#2A5866" style={styles.modalIcon} />
+                <Text style={styles.modalText}>
+                  Customer: {selectedDelivery.customer_name} ({selectedDelivery.customer_contact})
+                </Text>
+              </View>
+              <View style={styles.modalRow}>
+                <Icon name="location-on" size={20} color="#2A5866" style={styles.modalIcon} />
+                <Text style={styles.modalText}>Address: {selectedDelivery.customer_address}</Text>
+              </View>
+            </ScrollView>
+          )}
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setModalVisible(false)}
+          >
+            <Text style={styles.closeButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F0F4F8',
+    padding: 16,
   },
-  contentContainer: {
-    padding: 10,
-    paddingBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2A5866',
-    marginBottom: 5,
+  header: {
+    fontSize: 26,
+    fontWeight: '700',
     textAlign: 'center',
+    color: '#2A5866',
+    marginVertical: 16,
+    letterSpacing: 0.5,
   },
-  buttonContainer: {
+  summaryContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginVertical: 10,
+    marginBottom: 16,
   },
-  monthButton: {
+  summaryCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 12,
     flex: 1,
-    marginHorizontal: 5,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    marginHorizontal: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
     alignItems: 'center',
   },
-  activeButton: {
+  summaryTitle: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2A5866',
+    marginTop: 4,
+  },
+  dateButton: {
+    flexDirection: 'row',
     backgroundColor: '#2A5866',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  disabledButton: {
-    opacity: 0.5,
+  dateButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  buttonText: {
+  searchContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  searchInput: {
+    flex: 1,
     fontSize: 16,
     color: '#333',
   },
-  activeButtonText: {
-    color: '#fff',
-  },
-  chartTitle: {
-    fontSize: 20,
-    // fontWeight: 'bold',
-    color: '#2A5866',
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  chartScrollView: {
-    marginVertical: 10,
-    borderRadius: 8,
-    margin: -9,
-  },
-  chartStyle: {
-    borderRadius: 8,
-  },
-  statsContainer: {
+  sortContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 7,
-    // marginBottom: 20,
-    paddingHorizontal: 5,
+    marginBottom: 16,
   },
-  statBox: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    width: '48%',
+  sortButton: {
+    backgroundColor: '#FFF',
+    padding: 10,
+    borderRadius: 12,
+    flex: 1,
+    marginHorizontal: 4,
     alignItems: 'center',
-    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
+    elevation: 2,
   },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2A5866',
-    marginBottom: 5,
+  sortButtonActive: {
+    backgroundColor: '#2A5866',
   },
-  statLabel: {
+  sortButtonText: {
     fontSize: 14,
+    color: '#2A5866',
+    fontWeight: '600',
+  },
+  sortButtonTextActive: {
+    color: '#FFF',
+  },
+  tableContainer: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#2A5866',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1A3C4A',
+  },
+  tableHeaderText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFF',
+    textAlign: 'left',
+    paddingHorizontal: 4,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  tableCell: {
+    fontSize: 12,
+    color: '#333',
+    fontWeight: '500',
+    textAlign: 'left',
+    paddingHorizontal: 4,
+  },
+  loader: {
+    marginTop: 20,
+  },
+  noDataText: {
+    fontSize: 16,
     color: '#666',
+    textAlign: 'center',
+    marginTop: 20,
+    fontWeight: '500',
+  },
+  list: {
+    paddingBottom: 20,
+  },
+  icon: {
+    marginRight: 8,
+  },
+  modal: {
+    justifyContent: 'center',
+    margin: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2A5866',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalScroll: {
+    maxHeight: 300,
+  },
+  modalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+    flex: 1,
+  },
+  modalIcon: {
+    marginRight: 8,
+  },
+  closeButton: {
+    backgroundColor: '#2A5866',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  closeButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
-
-const chartConfig = {
-  backgroundColor: '#ffffff',
-  backgroundGradientFrom: '#6C9A8B',
-  backgroundGradientTo: '#2A5866',
-  decimalPlaces: 0,
-  color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`, // White text
-  labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`, // White labels
-  style: {
-    borderRadius: 16,
-  },
-  propsForDots: {
-    r: '6',
-    strokeWidth: '2',
-    stroke: '#ffa726',
-  },
-  fillShadowGradient: '#2575fc',
-  fillShadowGradientOpacity: 0.5,
-  barPercentage: 0.7,
-  propsForBackgroundLines: {
-    strokeWidth: 1,
-    stroke: 'rgba(255, 255, 255, 0.2)',
-    strokeDasharray: '0',
-  },
-  propsForLabels: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  useShadowColorFromDataset: false,
-  barRadius: 4,
-  formatYLabel: value => `${value}L`, // Custom Y-axis label format
-  formatXLabel: value => `Day ${value}`, // Custom X-axis label format
-  strokeWidth: 2, // For line charts (if used)
-  scrollableInfoTextStyle: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  scrollableInfoViewStyle: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 10,
-    borderRadius: 10,
-    margin: 10,
-  },
-};
 
 export default MonthlyReports;

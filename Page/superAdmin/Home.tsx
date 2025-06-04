@@ -10,11 +10,11 @@ const features = [
   { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Coustomer'  },
   { id: '2', name: 'Add Seller', icon: 'account-group', color: '#e67e22', screen: 'AddSeller' },
   { id: '3', name: 'Add Address', icon: 'earth', color: '#34495e', screen:'Address' },
-  { id: '4', name: 'Milk Distribution', icon: 'cup-water', color: '#2ecc71' ,screen: 'CustomerList'},
-  { id: '5', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments'},
-  // { id: '6', name: 'Daily Reports', icon: 'chart-bar', color: '#1abc9c', screen: 'MonthlyReports' },
   { id: '7', name: 'Milk Assiging', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
+  { id: '4', name: 'Customer Detail', icon: 'cup-water', color: '#2ecc71' ,screen: 'CustomerList'},
   { id: '8', name: 'Seller Details', icon: 'storefront', color: '#f1c40f', screen: 'seller details' },
+  { id: '6', name: 'Milk Delay Report', icon: 'chart-bar', color: '#1abc9c', screen: 'MonthlyReports' },
+  { id: '5', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments'},
   // { id: '9', name: 'Settings', icon: 'cog', color: '#7f8c8d' },
 ];
 // HomeScreen.js - Enhanced with more details

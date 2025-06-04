@@ -202,7 +202,7 @@ export default function App() {
           name="MonthlyReports"
           component={MonthlyReports}
           options={{
-            title: 'Customer List',
+            title: 'Milk Delay Report',
             headerStyle: {
               backgroundColor: '#2A5866',
               elevation: 4,

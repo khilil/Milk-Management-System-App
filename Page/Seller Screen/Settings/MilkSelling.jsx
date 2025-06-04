@@ -400,7 +400,7 @@ const MilkSelling = () => {
           style={styles.headerButton}
           onPress={() => navigation.navigate('addressSelect')}
         >
-           <AntDesign name="enviromento" size={20} color="#FFFFFF" />
+          <AntDesign name="enviromento" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -566,7 +566,7 @@ const MilkSelling = () => {
           </View>
         </View>
       </Modal>
-{/* E:\react_first\Milk-Management-System-App\Page\Seller Screen\Settings\MilkSelling.jsx  */}
+      {/* E:\react_first\Milk-Management-System-App\Page\Seller Screen\Settings\MilkSelling.jsx  */}
       <Toast />
     </View>
   );
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   addressTextSelected: {
-    color:'#FFFFFF',
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   searchContainer: {
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     backgroundColor: '#2A5866', // Primary theme color
-  
+
   },
   tabText: {
     fontSize: 16,

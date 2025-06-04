@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -18,19 +19,10 @@ import { print } from 'react-native-print';
 import { useNavigation } from '@react-navigation/native';
 import { fetchMonthlyConsumption } from '../../database-connect/customer/featch'; // Adjust path as needed
 
-const CoustomerDashboard = ({ route }) => {
-  const {
-    customer = {
-      id: 1, // Assume customer ID is passed for API calls
-      username: 'Test User',
-      phone: '1234567890',
-      address: '123, Mock Street',
-      milkQuantity: '5',
-    },
-    isAdmin = false,
-  } = route.params || {};
-
+const CustomerDashboard = ({ route }) => {
   const navigation = useNavigation();
+  const [customer, setCustomer] = useState(null); // No default user
+  const [isAdmin, setIsAdmin] = useState(route.params?.isAdmin || false);
   const [milkRecords, setMilkRecords] = useState([]);
   const [filteredRecords, setFilteredRecords] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,28 +30,70 @@ const CoustomerDashboard = ({ route }) => {
   const [thisMonthPaid, setThisMonthPaid] = useState(false);
   const [previousMonthPaid, setPreviousMonthPaid] = useState(false);
   const [monthlyData, setMonthlyData] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState('current'); // 'current' or 'previous'
+  const [selectedMonth, setSelectedMonth] = useState('current'); // 'current', 'previous', or 'next'
   const itemsPerPage = 5;
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1; // 1-based for API
 
+  // Load customer data from AsyncStorage or route.params
+  useEffect(() => {
+    const loadCustomer = async () => {
+      try {
+        // First, check if customer data is passed via route.params (from login)
+        let userData = route.params?.customer;
+        if (userData) {
+          // Save the customer data to AsyncStorage to persist it
+          await AsyncStorage.setItem('loggedInUser', JSON.stringify(userData));
+          setCustomer(userData);
+          setIsAdmin(route.params?.isAdmin || false);
+        } else {
+          // If no route.params, try to retrieve from AsyncStorage
+          const storedData = await AsyncStorage.getItem('loggedInUser');
+          if (storedData) {
+            userData = JSON.parse(storedData);
+            setCustomer(userData);
+            setIsAdmin(userData.isAdmin || false); // Ensure isAdmin is set from stored data
+          } else {
+            // No user data found, redirect to login
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading customer:', error);
+        Alert.alert('Error', 'Failed to load user data');
+        // Only redirect to login if no user data is found
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      }
+    };
+    loadCustomer();
+  }, [navigation, route.params?.customer]);
+
   // Set navigation options
   useEffect(() => {
-    navigation.setOptions({
-      headerTitle: 'Customer Dashboard',
-      headerRight: () => (
-        <TouchableOpacity onPress={handleLogout} style={{ marginRight: 15 }}>
-          <Ionicons name="log ize={24}" color="#fff" />
-        </TouchableOpacity>
-      ),
-      headerStyle: { backgroundColor: '#2A5866' },
-      headerTintColor: '#fff',
-    });
-  }, [navigation]);
+    if (customer) {
+      navigation.setOptions({
+        headerTitle: 'Customer Dashboard',
+        headerRight: () => (
+          <TouchableOpacity onPress={handleLogout} style={{ marginRight: 15 }}>
+            <Ionicons name="log-out-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+        ),
+        headerStyle: { backgroundColor: '#2A5866' },
+        headerTintColor: '#fff',
+      });
+    }
+  }, [navigation, customer]);
 
   // Fetch monthly consumption data
   useEffect(() => {
+    if (!customer) return;
     const fetchData = async () => {
       try {
         const data = await fetchMonthlyConsumption(customer.id, currentYear, currentMonth);
@@ -71,7 +105,7 @@ const CoustomerDashboard = ({ route }) => {
       }
     };
     fetchData();
-  }, [customer.id]);
+  }, [customer?.id]);
 
   // Filter records based on date input
   useEffect(() => {
@@ -83,16 +117,35 @@ const CoustomerDashboard = ({ route }) => {
     setCurrentPage(1);
   }, [dateFilter, milkRecords]);
 
+  // Update milk records when selected month changes
+  useEffect( ()=> {
+    if (monthlyData) {
+      const records =
+        selectedMonth === 'current'
+          ? monthlyData.current_month.daily_records
+          : selectedMonth === 'previous'
+          ? monthlyData.previous_month.daily_records
+          : monthlyData.next_month.daily_records;
+      setMilkRecords(records);
+      setFilteredRecords(records);
+      setDateFilter('');
+    }
+  }, [selectedMonth, monthlyData]);
+
   // Calculate totals based on selected month
   const totalMilk = monthlyData
     ? selectedMonth === 'current'
       ? monthlyData.current_month.total_quantity
-      : monthlyData.previous_month.total_quantity
+      : selectedMonth === 'previous'
+      ? monthlyData.previous_month.total_quantity
+      : monthlyData.next_month.total_quantity
     : 0;
   const totalPrice = monthlyData
     ? selectedMonth === 'current'
       ? monthlyData.current_month.total_price
-      : monthlyData.previous_month.total_price
+      : selectedMonth === 'previous'
+      ? monthlyData.previous_month.total_price
+      : monthlyData.next_month.total_price
     : 0;
   const pricePerLiter = monthlyData
     ? monthlyData.current_month.price_per_liter
@@ -153,12 +206,13 @@ const CoustomerDashboard = ({ route }) => {
     );
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert('Confirm Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
-        onPress: () => {
+        onPress: async () => {
+          await AsyncStorage.removeItem('loggedInUser');
           navigation.reset({
             index: 0,
             routes: [{ name: 'Login' }],
@@ -168,10 +222,252 @@ const CoustomerDashboard = ({ route }) => {
     ]);
   };
 
-  const toggleMonthView = () => {
-    setSelectedMonth(selectedMonth === 'current' ? 'previous' : 'current');
-    setDateFilter(''); // Reset filter when switching months
+  const toggleMonthView = month => {
+    setSelectedMonth(month);
   };
+
+  const downloadExcel = async () => {
+    try {
+      const isPermitted = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+      );
+      if (!isPermitted) {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+          {
+            title: 'Storage Permission Needed',
+            message: 'This app needs access to storage to download the Excel file.',
+            buttonPositive: 'OK',
+          },
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert('Permission Denied', 'Cannot download file without storage permission.');
+          return;
+        }
+      }
+
+      const data = filteredRecords.map(record => ({
+        Date: record.date,
+        Quantity: record.quantity,
+        Price: `₹${(record.quantity * pricePerLiter).toFixed(2)}`,
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'MilkRecords');
+
+      const wbout = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
+      const filePath = `${RNFS.DownloadDirectoryPath}/MilkRecords_${customer?.username || 'User'}.xlsx`;
+
+      await RNFS.writeFile(filePath, wbout, 'ascii');
+      Alert.alert('Success', `Excel file downloaded to ${filePath}`);
+    } catch (error) {
+      console.error('Error downloading Excel:', error);
+      Alert.alert('Error', 'Failed to download Excel file.');
+    }
+  };
+
+  const handlePrint = async () => {
+    try {
+      await print({
+        html: `<h1>${customer?.username || 'User'}'s Milk Records</h1><table>${filteredRecords
+          .map(
+            r =>
+              `<tr><td>${r.date}</td><td>${r.quantity}</td><td>₹${(
+                r.quantity * pricePerLiter
+              ).toFixed(2)}</td></tr>`,
+          )
+          .join('')}</table>`,
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to print.');
+    }
+  };
+
+  const togglePayment = month => {
+    if (month === 'this') {
+      setThisMonthPaid(!thisMonthPaid);
+    } else if (month === 'previous') {
+      setPreviousMonthPaid(!previousMonthPaid);
+    }
+  };
+
+  const HeaderContent = () => (
+    <>
+      {customer ? (
+        <>
+          <View style={styles.header}>
+            <View style={styles.profileContainer}>
+              <View style={styles.profileIcon}>
+                <Icon name="account" size={32} color="#FFFFFF" />
+              </View>
+              <Text style={styles.headerText}>{customer.username}</Text>
+              <Text style={styles.subHeader}>{customer.phone}</Text>
+            </View>
+
+            {!isAdmin && (
+              <View style={styles.adminActions}>
+                <TouchableOpacity style={styles.actionButton} onPress={downloadExcel}>
+                  <Icon name="file-excel" size={24} color="#FFFFFF" />
+                  <Text style={styles.actionText}>Download Excel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton} onPress={handlePrint}>
+                  <Icon name="printer" size={24} color="#FFFFFF" />
+                  <Text style={styles.actionText}>Print</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.monthToggleContainer}>
+            <TouchableOpacity
+              style={[
+                styles.monthButton,
+                selectedMonth === 'previous' && styles.activeMonthButton,
+              ]}
+              onPress={() => toggleMonthView('previous')}>
+              <Text
+                style={[
+                  styles.monthButtonText,
+                  selectedMonth === 'previous' && styles.activeMonthButtonText,
+                ]}>
+                Previous Month
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.monthButton,
+                selectedMonth === 'current' && styles.activeMonthButton,
+              ]}
+              onPress={() => toggleMonthView('current')}>
+              <Text
+                style={[
+                  styles.monthButtonText,
+                  selectedMonth === 'current' && styles.activeMonthButtonText,
+                ]}>
+                This Month
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.monthButton,
+                selectedMonth === 'next' && styles.activeMonthButton,
+              ]}
+              onPress={() => toggleMonthView('next')}>
+              <Text
+                style={[
+                  styles.monthButtonText,
+                  selectedMonth === 'next' && styles.activeMonthButtonText,
+                ]}>
+                Next Month
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.statsCard}>
+            <View style={styles.statItem}>
+              <Icon name="chart-bar" size={24} color="#2A5866" />
+              <Text style={styles.statValue}>{totalMilk.toFixed(2)}L</Text>
+              <Text style={styles.statLabel}>
+                {selectedMonth === 'current'
+                  ? 'This Month'
+                  : selectedMonth === 'previous'
+                  ? 'Previous Month'
+                  : 'Next Month'}{' '}
+                Milk
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <Icon name="currency-inr" size={24} color="#2A5866" />
+              <Text style={styles.statValue}>₹{totalPrice.toFixed(2)}</Text>
+              <Text style={styles.statLabel}>Total Value</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailCard}>
+            <View style={styles.infoRow}>
+              <Icon name="map-marker" size={18} color="#2A5866" />
+              <Text style={styles.infoText}>{customer.address}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
+              <Icon name="calendar" size={18} color="#2A5866" />
+              <Text style={styles.infoText}>
+                Daily Quantity: {customer.milkQuantity}
+              </Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
+              <Icon name="cash-check" size={18} color="#2A5866" />
+              <Text style={styles.infoText}>
+                Previous Month Paid: {previousMonthPaid ? 'Yes' : 'No'}
+                {isAdmin && (
+                  <TouchableOpacity
+                    onPress={() => togglePayment('previous')}
+                    style={styles.toggleButton}>
+                    <Text style={styles.toggleText}>
+                      {previousMonthPaid ? 'Unmark' : 'Mark'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
+              <Icon name="cash-clock" size={18} color="#2A5866" />
+              <Text style={styles.infoText}>
+                This Month Paid: {thisMonthPaid ? 'Yes' : 'No'}
+                {isAdmin && (
+                  <TouchableOpacity
+                    onPress={() => togglePayment('this')}
+                    style={styles.toggleButton}>
+                    <Text style={styles.toggleText}>
+                      {thisMonthPaid ? 'Unmark' : 'Mark'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
+              <Icon name="cash" size={18} color="#2A5866" />
+              <Text style={styles.infoText}>
+                Next Month Due: {thisMonthPaid ? '₹0' : `₹${totalPrice.toFixed(2)}`}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.filterContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by date (YYYY-MM-DD)"
+              placeholderTextColor="#90A4AE"
+              value={dateFilter}
+              onChangeText={setDateFilter}
+            />
+            <Icon
+              name="magnify"
+              size={24}
+              color="#2A5866"
+              style={styles.searchIcon}
+            />
+          </View>
+
+          <Text style={styles.sectionTitle}>
+            {selectedMonth === 'current'
+              ? 'This Month Milk Distribution History'
+              : selectedMonth === 'previous'
+              ? 'Previous Month Milk Distribution History'
+              : 'Next Month Milk Distribution History'}
+          </Text>
+        </>
+      ) : (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading user data...</Text>
+        </View>
+      )}
+    </>
+  );
 
   const renderMilkRecord = ({ item }) => (
     <View style={styles.recordRow}>
@@ -251,232 +547,10 @@ const CoustomerDashboard = ({ route }) => {
     </View>
   );
 
-  const downloadExcel = async () => {
-    try {
-      const isPermitted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-      );
-      if (!isPermitted) {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-          {
-            title: 'Storage Permission Needed',
-            message:
-              'This app needs access to storage to download the Excel file.',
-            buttonPositive: 'OK',
-          },
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert(
-            'Permission Denied',
-            'Cannot download file without storage permission.',
-          );
-          return;
-        }
-      }
-
-      const data = filteredRecords.map(record => ({
-        Date: record.date,
-        Quantity: record.quantity,
-        Price: `₹${(record.quantity * pricePerLiter).toFixed(2)}`,
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'MilkRecords');
-
-      const wbout = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
-      const filePath = `${RNFS.DownloadDirectoryPath}/MilkRecords_${customer.username}.xlsx`;
-
-      await RNFS.writeFile(filePath, wbout, 'ascii');
-      Alert.alert('Success', `Excel file downloaded to ${filePath}`);
-    } catch (error) {
-      console.error('Error downloading Excel:', error);
-      Alert.alert('Error', 'Failed to download Excel file.');
-    }
-  };
-
-  const handlePrint = async () => {
-    try {
-      await print({
-        html: `<h1>${
-          customer.username
-        }'s Milk Records</h1><table>${filteredRecords
-          .map(
-            r =>
-              `<tr><td>${r.date}</td><td>${r.quantity}</td><td>₹${(
-                r.quantity * pricePerLiter
-              ).toFixed(2)}</td></tr>`,
-          )
-          .join('')}</table>`,
-      });
-    } catch (error) {
-      Alert.alert('Error', 'Failed to print.');
-    }
-  };
-
-  const togglePayment = month => {
-    if (month === 'this') {
-      setThisMonthPaid(!thisMonthPaid);
-    } else if (month === 'previous') {
-      setPreviousMonthPaid(!previousMonthPaid);
-    }
-  };
-
-  const HeaderContent = () => (
-    <>
-      <View style={styles.header}>
-        <View style={styles.profileContainer}>
-          <View style={styles.profileIcon}>
-            <Icon name="account" size={32} color="#FFFFFF" />
-          </View>
-          <Text style={styles.headerText}>{customer.username}</Text>
-          <Text style={styles.subHeader}>{customer.phone}</Text>
-        </View>
-
-        {!isAdmin && (
-          <View style={styles.adminActions}>
-            <TouchableOpacity style={styles.actionButton} onPress={downloadExcel}>
-              <Icon name="file-excel" size={24} color="#FFFFFF" />
-              <Text style={styles.actionText}>Download Excel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={handlePrint}>
-              <Icon name="printer" size={24} color="#FFFFFF" />
-              <Text style={styles.actionText}>Print</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.monthToggleContainer}>
-        <TouchableOpacity
-          style={[
-            styles.monthButton,
-            selectedMonth === 'current' && styles.activeMonthButton,
-          ]}
-          onPress={() => setSelectedMonth('current')}>
-          <Text
-            style={[
-              styles.monthButtonText,
-              selectedMonth === 'current' && styles.activeMonthButtonText,
-            ]}>
-            This Month
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.monthButton,
-            selectedMonth === 'previous' && styles.activeMonthButton,
-          ]}
-          onPress={() => setSelectedMonth('previous')}>
-          <Text
-            style={[
-              styles.monthButtonText,
-              selectedMonth === 'previous' && styles.activeMonthButtonText,
-            ]}>
-            Previous Month
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.statsCard}>
-        <View style={styles.statItem}>
-          <Icon name="chart-bar" size={24} color="#2A5866" />
-          <Text style={styles.statValue}>{totalMilk.toFixed(2)}L</Text>
-          <Text style={styles.statLabel}>
-            {selectedMonth === 'current' ? 'This Month' : 'Previous Month'} Milk
-          </Text>
-        </View>
-        <View style={styles.statItem}>
-          <Icon name="currency-inr" size={24} color="#2A5866" />
-          <Text style={styles.statValue}>₹{totalPrice.toFixed(2)}</Text>
-          <Text style={styles.statLabel}>Total Value</Text>
-        </View>
-      </View>
-
-      <View style={styles.detailCard}>
-        <View style={styles.infoRow}>
-          <Icon name="map-marker" size={18} color="#2A5866" />
-          <Text style={styles.infoText}>{customer.address}</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.infoRow}>
-          <Icon name="calendar" size={18} color="#2A5866" />
-          <Text style={styles.infoText}>
-            Daily Quantity: {customer.milkQuantity}
-          </Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.infoRow}>
-          <Icon name="cash-check" size={18} color="#2A5866" />
-          <Text style={styles.infoText}>
-            Previous Month Paid: {previousMonthPaid ? 'Yes' : 'No'}
-            {isAdmin && (
-              <TouchableOpacity
-                onPress={() => togglePayment('previous')}
-                style={styles.toggleButton}>
-                <Text style={styles.toggleText}>
-                  {previousMonthPaid ? 'Unmark' : 'Mark'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.infoRow}>
-          <Icon name="cash-clock" size={18} color="#2A5866" />
-          <Text style={styles.infoText}>
-            This Month Paid: {thisMonthPaid ? 'Yes' : 'No'}
-            {isAdmin && (
-              <TouchableOpacity
-                onPress={() => togglePayment('this')}
-                style={styles.toggleButton}>
-                <Text style={styles.toggleText}>
-                  {thisMonthPaid ? 'Unmark' : 'Mark'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.infoRow}>
-          <Icon name="cash" size={18} color="#2A5866" />
-          <Text style={styles.infoText}>
-            Next Month Due: {thisMonthPaid ? '₹0' : `₹${totalPrice.toFixed(2)}`}
-          </Text>
-        </View>
-      </View>
-
-      {selectedMonth === 'current' && (
-        <View style={styles.filterContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by date (YYYY-MM-DD)"
-            placeholderTextColor="#90A4AE"
-            value={dateFilter}
-            onChangeText={setDateFilter}
-          />
-          <Icon
-            name="magnify"
-            size={24}
-            color="#2A5866"
-            style={styles.searchIcon}
-          />
-        </View>
-      )}
-
-      <Text style={styles.sectionTitle}>
-        {selectedMonth === 'current'
-          ? 'Milk Distribution History'
-          : 'Previous Month Summary'}
-      </Text>
-    </>
-  );
-
   return (
     <LinearGradient colors={['#F8F9FB', '#EFF2F6']} style={styles.container}>
       <FlatList
-        data={selectedMonth === 'current' ? paginatedRecords : []}
+        data={customer ? paginatedRecords : []}
         keyExtractor={item => item.date}
         renderItem={renderMilkRecord}
         ListHeaderComponent={<HeaderContent />}
@@ -484,16 +558,20 @@ const CoustomerDashboard = ({ route }) => {
           <View style={styles.emptyState}>
             <Icon name="database-remove" size={48} color="#CFD8DC" />
             <Text style={styles.emptyText}>
-              {selectedMonth === 'current'
-                ? 'No records found'
-                : 'No detailed records for previous month'}
+              {customer
+                ? `No records found for ${
+                    selectedMonth === 'current'
+                      ? 'this month'
+                      : selectedMonth === 'previous'
+                      ? 'previous month'
+                      : 'next month'
+                  }`
+                : 'Please log in to view records'}
             </Text>
           </View>
         }
         ListFooterComponent={
-          selectedMonth === 'current' && filteredRecords.length > itemsPerPage
-            ? renderPagination
-            : null
+          customer && filteredRecords.length > itemsPerPage ? renderPagination : null
         }
         contentContainerStyle={styles.scrollContent}
       />
@@ -546,7 +624,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flexDirection: 'row',
-    backgroundColor: '#2A586(((((((())))))))))6',
+    backgroundColor: '#2A5866',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -574,9 +652,6 @@ const styles = StyleSheet.create({
   activeMonthButton: {
     backgroundColor: '#2A5866',
   },
-  monthButtonText: {
-    fontSize: 16,
-    },
   monthButtonText: {
     fontSize: 16,
     color: '#2A5866',
@@ -729,6 +804,15 @@ const styles = StyleSheet.create({
     minWidth: 80,
     textAlign: 'center',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#2A5866',
+  },
 });
 
-export default CoustomerDashboard;
+export default CustomerDashboard;
