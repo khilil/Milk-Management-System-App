@@ -11,7 +11,7 @@ import {
   TextInput,
   RefreshControl,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons'; // Switched to Ionicons for cleaner look
+import Icon from 'react-native-vector-icons/Ionicons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,7 +36,7 @@ const CoustomerMilkAssingDataList = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCards, setExpandedCards] = useState({});
   const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState('date-desc'); // New: Sort option
+  const [sortBy, setSortBy] = useState('date-desc');
   const itemsPerPage = 10;
   const [sellerId, setSellerId] = useState(null);
 
@@ -56,7 +56,7 @@ const CoustomerMilkAssingDataList = () => {
       }
     };
     getSellerId();
-  }, []);
+  }, [navigation]);
 
   // Load cached data for offline support
   useEffect(() => {
@@ -97,9 +97,17 @@ const CoustomerMilkAssingDataList = () => {
   }, [loadData]);
 
   // Handle pull-to-refresh
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    loadData().finally(() => setRefreshing(false));
+    setPage(1); // Reset pagination
+    try {
+      await loadData();
+      // alert('Data refreshed successfully');
+    } catch (error) {
+      alert('Failed to refresh data');
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadData]);
 
   // Calculate total and sort distributions
@@ -196,11 +204,9 @@ const CoustomerMilkAssingDataList = () => {
     </View>
   );
 
-  const paginatedData = filteredDistributions.slice(0, page * itemsPerPage);
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+  const renderHeader = () => (
+    <>
+      {/* <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.iconButton}
@@ -218,7 +224,7 @@ const CoustomerMilkAssingDataList = () => {
         >
           <Icon name="refresh" size={24} color="#F8FAFC" />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>
@@ -306,55 +312,92 @@ const CoustomerMilkAssingDataList = () => {
           />
         )}
       </View>
+    </>
+  );
 
+  const paginatedData = filteredDistributions.slice(0, page * itemsPerPage);
+
+  return (
+    <SafeAreaView style={styles.container}>
       {loading && !refreshing ? (
         <FlatList
           data={[1, 2, 3]}
           renderItem={renderSkeletonCard}
           keyExtractor={(item) => `skeleton-${item}`}
           contentContainerStyle={styles.listContainer}
+          ListHeaderComponent={renderHeader}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2A5866']}
+              tintColor="#2A5866"
+            />
+          }
         />
       ) : paginatedData.length > 0 ? (
-        <>
-          <FlatList
-            data={paginatedData}
-            keyExtractor={(item, index) => `${item.Customer_id}-${item.Distribution_date}-${index}`}
-            renderItem={renderDistribution}
-            contentContainerStyle={styles.listContainer}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2A5866" />
-            }
-          />
-          {paginatedData.length < filteredDistributions.length && (
-            <TouchableOpacity
-              style={styles.loadMoreButton}
-              onPress={loadMore}
-              accessible
-              accessibilityLabel="Load more distributions"
-            >
-              <Text style={styles.loadMoreText}>Load More</Text>
-            </TouchableOpacity>
-          )}
-        </>
+        <FlatList
+          data={paginatedData}
+          keyExtractor={(item, index) => `${item.Customer_id}-${item.Distribution_date}-${index}`}
+          renderItem={renderDistribution}
+          contentContainerStyle={styles.listContainer}
+          ListHeaderComponent={renderHeader}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2A5866']}
+              tintColor="#2A5866"
+            />
+          }
+          ListFooterComponent={
+            paginatedData.length < filteredDistributions.length ? (
+              <TouchableOpacity
+                style={styles.loadMoreButton}
+                onPress={loadMore}
+                accessible
+                accessibilityLabel="Load more distributions"
+              >
+                <Text style={styles.loadMoreText}>Load More</Text>
+              </TouchableOpacity>
+            ) : null
+          }
+        />
       ) : (
-        <View style={styles.noDataContainer}>
-          <Icon name="alert-circle-outline" size={48} color="#2A5866" />
-          <Text style={styles.noDataText}>
-            {showAllDates
-              ? `No distributions found for Seller ID ${sellerId}`
-              : `No distributions found for ${date}`}
-          </Text>
-          {!showAllDates && (
-            <TouchableOpacity
-              style={styles.tryAnotherButton}
-              onPress={() => setShowDatePicker(true)}
-              accessible
-              accessibilityLabel="Try another date"
-            >
-              <Text style={styles.tryAnotherText}>Try Another Date</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        <FlatList
+          data={[]}
+          renderItem={null}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={
+            <View style={styles.noDataContainer}>
+              <Icon name="alert-circle-outline" size={48} color="#2A5866" />
+              <Text style={styles.noDataText}>
+                {showAllDates
+                  ? `No distributions found for Seller ID ${sellerId}`
+                  : `No distributions found for ${date}`}
+              </Text>
+              {!showAllDates && (
+                <TouchableOpacity
+                  style={styles.tryAnotherButton}
+                  onPress={() => setShowDatePicker(true)}
+                  accessible
+                  accessibilityLabel="Try another date"
+                >
+                  <Text style={styles.tryAnotherText}>Try Another Date</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          }
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2A5866']}
+              tintColor="#2A5866"
+            />
+          }
+        />
       )}
     </SafeAreaView>
   );
@@ -363,7 +406,7 @@ const CoustomerMilkAssingDataList = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC', // Off-white background
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
@@ -371,18 +414,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#2A5866', // Theme color
+    backgroundColor: '#2A5866',
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: '#F8FAFC',
-    fontFamily: 'Roboto', // Ensure font is available or use default
+    fontFamily: 'Roboto',
   },
   iconButton: {
     padding: 10,
     borderRadius: 12,
-    backgroundColor: '#4A8294', // Lighter teal
+    backgroundColor: '#4A8294',
   },
   summaryCard: {
     backgroundColor: '#FFF',
@@ -566,10 +609,10 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   noDataContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    marginTop: 20,
   },
   noDataText: {
     fontSize: 18,

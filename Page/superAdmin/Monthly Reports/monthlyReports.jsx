@@ -425,8 +425,8 @@ const styles = StyleSheet.create({
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#2A5866',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     borderBottomWidth: 1,
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#333',
     fontWeight: '500',
-    textAlign: 'left',
+    textAlign: 'center',
     paddingHorizontal: 4,
   },
   loader: {

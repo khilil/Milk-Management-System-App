@@ -10,6 +10,8 @@ import {
   Modal,
   FlatList,
   Animated,
+  ScrollView,
+  RefreshControl, // Added RefreshControl import
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import AntDesign from 'react-native-vector-icons/AntDesign';
@@ -43,6 +45,7 @@ const MilkSelling = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [showEntries, setShowEntries] = useState(false);
+  const [refreshing, setRefreshing] = useState(false); // Added state for refresh control
   const searchInputRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -165,6 +168,75 @@ const MilkSelling = () => {
       loadData();
     }
   }, [date, sellerId]);
+
+  // Handle pull-to-refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Reset pagination
+      setPage(1);
+      setCustomers([]);
+      setFilteredCustomers([]);
+      setHasMore(true);
+
+      // Refetch initial data
+      const userId = await AsyncStorage.getItem('userId');
+      const userRole = await AsyncStorage.getItem('userRole');
+      if (userId && userRole === 'seller') {
+        setSellerId(parseInt(userId));
+        const storedAddressIds = await AsyncStorage.getItem(`selectedAddressIds_${userId}`);
+        if (storedAddressIds) {
+          const addressIds = JSON.parse(storedAddressIds);
+          setSelectedAddressIds(addressIds);
+          setSelectedAddressId(addressIds[0]);
+          const addressNames = addressIds.map(id => ({ Address_id: id, Name: `Area ${id}` }));
+          setAddresses(addressNames);
+
+          // Fetch customers for the first page
+          if (addressIds[0]) {
+            const customerData = await fetchCustomers([addressIds[0]]);
+            const paginatedData = customerData.slice(0, ITEMS_PER_PAGE);
+            setCustomers(paginatedData);
+            setFilteredCustomers(paginatedData);
+            setHasMore(customerData.length > ITEMS_PER_PAGE);
+          }
+        }
+
+        // Fetch milk data
+        const [assignmentData, soldData, distData] = await Promise.all([
+          fetchMilkAssignment(parseInt(userId), date),
+          fetchTotalMilkSold(parseInt(userId), date),
+          fetchDistributionDetails(parseInt(userId), date),
+        ]);
+        setAssignedMilk(assignmentData.assigned_quantity);
+        setRemainingMilk(assignmentData.remaining_quantity);
+        setTotalMilkSold(soldData.total_quantity);
+        setEntries(distData.map(item => ({
+          delivery_id: item.delivery_id,
+          seller_id: item.seller_id,
+          customer_id: item.customer_id,
+          customer: { Customer_id: item.customer_id, Name: item.customer_name },
+          milkQuantity: item.quantity,
+          date: item.date,
+        })));
+
+        Toast.show({
+          type: 'success',
+          text1: 'Refreshed',
+          text2: 'Data has been refreshed successfully',
+        });
+      }
+    } catch (error) {
+      console.error('Refresh Error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to refresh data',
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [date]);
 
   // Debounced search
   const debouncedSearch = useCallback(
@@ -384,7 +456,7 @@ const MilkSelling = () => {
       <Text
         style={[
           styles.addressText,
-          selectedAddressId === item.AddressId && styles.addressTextSelected,
+          selectedAddressId === item.Address_id && styles.addressTextSelected,
         ]}
       >
         {item.Name}
@@ -394,115 +466,128 @@ const MilkSelling = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Milk Distribution</Text>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => navigation.navigate('addressSelect')}
-        >
-          <AntDesign name="enviromento" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2A5866']} // Refresh indicator color
+            tintColor="#2A5866" // iOS refresh indicator color
+          />
+        }
+      >
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Milk Distribution</Text>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.navigate('addressSelect')}
+          >
+            <AntDesign name="enviromento" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>{date} - Seller ID: {sellerId || 'N/A'}</Text>
-        <View style={styles.summaryGrid}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Assigned</Text>
-            <Text style={styles.summaryValue}>{assignedMilk.toFixed(2)} L</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Remaining</Text>
-            <Text style={styles.summaryValue}>{remainingMilk.toFixed(2)} L</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Distributed</Text>
-            <Text style={styles.summaryValue}>{totalMilkSold.toFixed(2)} L</Text>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>{date} - Seller ID: {sellerId || 'N/A'}</Text>
+          <View style={styles.summaryGrid}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Assigned</Text>
+              <Text style={styles.summaryValue}>{assignedMilk.toFixed(2)} L</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Remaining</Text>
+              <Text style={styles.summaryValue}>{remainingMilk.toFixed(2)} L</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Distributed</Text>
+              <Text style={styles.summaryValue}>{totalMilkSold.toFixed(2)} L</Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={styles.filterSection}>
-        <Text style={styles.sectionTitle}>Select Area</Text>
-        <FlatList
-          horizontal
-          data={addresses}
-          keyExtractor={(item) => item.Address_id.toString()}
-          renderItem={renderAddress}
-          showsHorizontalScrollIndicator={false}
-          style={styles.addressList}
-        />
-      </View>
+        <View style={styles.filterSection}>
+          <Text style={styles.sectionTitle}>Select Area</Text>
+          <FlatList
+            horizontal
+            data={addresses}
+            keyExtractor={(item) => item.Address_id.toString()}
+            renderItem={renderAddress}
+            showsHorizontalScrollIndicator={false}
+            style={styles.addressList}
+          />
+        </View>
 
-      <View style={styles.searchContainer}>
-        <AntDesign name="search1" size={20} color="#2C5282" style={styles.searchIcon} />
-        <TextInput
-          ref={searchInputRef}
-          style={styles.searchInput}
-          placeholder="Search by Name or ID"
-          value={searchText}
-          onChangeText={handleSearch}
-        />
-        {searchText.length > 0 && (
-          <TouchableOpacity style={styles.clearSearchButton} onPress={clearSearch}>
-            <AntDesign name="close" size={18} color="#2C5282" />
+        <View style={styles.searchContainer}>
+          <AntDesign name="search1" size={20} color="#2C5282" style={styles.searchIcon} />
+          <TextInput
+            ref={searchInputRef}
+            style={styles.searchInput}
+            placeholder="Search by Name or ID"
+            value={searchText}
+            onChangeText={handleSearch}
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity style={styles.clearSearchButton} onPress={clearSearch}>
+              <AntDesign name="close" size={18} color="#2C5282" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, !showEntries && styles.tabActive]}
+            onPress={() => {
+              setShowEntries(false);
+              fadeAnim.setValue(0);
+            }}
+          >
+            <Text style={[styles.tabText, !showEntries && styles.tabTextActive]}>
+              Customers
+            </Text>
           </TouchableOpacity>
-        )}
-      </View>
+          <TouchableOpacity
+            style={[styles.tab, showEntries && styles.tabActive]}
+            onPress={() => {
+              setShowEntries(true);
+              fadeAnim.setValue(0);
+            }}
+          >
+            <Text style={[styles.tabText, showEntries && styles.tabTextActive]}>
+              Entries
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, !showEntries && styles.tabActive]}
-          onPress={() => {
-            setShowEntries(false);
-            fadeAnim.setValue(0);
-          }}
-        >
-          <Text style={[styles.tabText, !showEntries && styles.tabTextActive]}>
-            Customers
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, showEntries && styles.tabActive]}
-          onPress={() => {
-            setShowEntries(true);
-            fadeAnim.setValue(0);
-          }}
-        >
-          <Text style={[styles.tabText, showEntries && styles.tabTextActive]}>
-            Entries
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <Animated.View style={[styles.tabContent, { opacity: fadeAnim }]}>
-        {loading && page === 1 ? (
-          <ActivityIndicator size="large" color="#2C5282" style={styles.loader} />
-        ) : showEntries ? (
-          <FlashList
-            data={entries}
-            renderItem={renderEntry}
-            keyExtractor={(item) => `entry-${item.delivery_id}`}
-            estimatedItemSize={70}
-            ListEmptyComponent={<Text style={styles.noResults}>No entries for {date}</Text>}
-          />
-        ) : (
-          <FlashList
-            data={filteredCustomers}
-            renderItem={renderCustomer}
-            keyExtractor={(item) => `customer-${item.Customer_id}`}
-            estimatedItemSize={80}
-            onEndReached={loadMoreCustomers}
-            onEndReachedThreshold={0.5}
-            ListEmptyComponent={<Text style={styles.noResults}>No customers found</Text>}
-            ListFooterComponent={
-              loading && hasMore ? (
-                <ActivityIndicator size="small" color="#2C5282" style={styles.footerLoader} />
-              ) : null
-            }
-          />
-        )}
-      </Animated.View>
+        <Animated.View style={[styles.tabContent, { opacity: fadeAnim }]}>
+          {loading && page === 1 ? (
+            <ActivityIndicator size="large" color="#2C5282" style={styles.loader} />
+          ) : showEntries ? (
+            <FlashList
+              data={entries}
+              renderItem={renderEntry}
+              keyExtractor={(item) => `entry-${item.delivery_id}`}
+              estimatedItemSize={70}
+              ListEmptyComponent={<Text style={styles.noResults}>No entries for {date}</Text>}
+            />
+          ) : (
+            <FlashList
+              data={filteredCustomers}
+              renderItem={renderCustomer}
+              keyExtractor={(item) => `customer-${item.Customer_id}`}
+              estimatedItemSize={80}
+              onEndReached={loadMoreCustomers}
+              onEndReachedThreshold={0.5}
+              ListEmptyComponent={<Text style={styles.noResults}>No customers found</Text>}
+              ListFooterComponent={
+                loading && hasMore ? (
+                  <ActivityIndicator size="small" color="#2C5282" style={styles.footerLoader} />
+                ) : null
+              }
+            />
+          )}
+        </Animated.View>
+      </ScrollView>
 
       <Modal
         animationType="fade"
@@ -566,16 +651,19 @@ const MilkSelling = () => {
           </View>
         </View>
       </Modal>
-      {/* E:\react_first\Milk-Management-System-App\Page\Seller Screen\Settings\MilkSelling.jsx  */}
       <Toast />
     </View>
   );
 };
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA', // Light gray-blue for a clean, calming backdrop
-    padding: 20, // Increased padding for breathing room
+    backgroundColor: '#F5F7FA',
+    padding: 20,
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   header: {
     flexDirection: 'row',
@@ -584,13 +672,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 28, // Slightly smaller for balance
+    fontSize: 28,
     fontWeight: '700',
-    color: '#1A2A44', // Dark navy for strong readability
+    color: '#1A2A44',
     letterSpacing: 0.2,
   },
   headerButton: {
-    backgroundColor: '#2A5866', // Primary theme color
+    backgroundColor: '#2A5866',
     padding: 10,
     borderRadius: 10,
     shadowColor: '#000',
@@ -606,7 +694,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1, // Subtle shadow for depth
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
@@ -619,7 +707,7 @@ const styles = StyleSheet.create({
   summaryGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#F9FAFB', // Very light neutral background
+    backgroundColor: '#F9FAFB',
     borderRadius: 10,
     padding: 12,
   },
@@ -629,14 +717,14 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: '#64748B', // Muted slate for secondary text
+    color: '#64748B',
     marginBottom: 4,
     fontWeight: '500',
   },
   summaryValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#2A5866', // Primary theme color
+    color: '#2A5866',
   },
   filterSection: {
     marginBottom: 16,
@@ -655,12 +743,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     marginRight: 8,
-    backgroundColor: '#2A5866', // Neutral gray
+    backgroundColor: '#2A5866',
     borderRadius: 16,
-    borderWidth: 0, // Removed border for cleaner look
+    borderWidth: 0,
   },
   addressButtonSelected: {
-    backgroundColor: '#102D36FF', // Primary theme color
+    backgroundColor: '#102D36FF',
   },
   addressText: {
     fontSize: 14,
@@ -686,7 +774,7 @@ const styles = StyleSheet.create({
   },
   searchIcon: {
     marginRight: 8,
-    color: '#2A5866', // Primary theme color
+    color: '#2A5866',
   },
   searchInput: {
     flex: 1,
@@ -715,8 +803,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   tabActive: {
-    backgroundColor: '#2A5866', // Primary theme color
-
+    backgroundColor: '#2A5866',
   },
   tabText: {
     fontSize: 16,
@@ -744,7 +831,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   customerIcon: {
-    backgroundColor: '#F0F4F8', // Light teal-gray
+    backgroundColor: '#F0F4F8',
     borderRadius: 8,
     padding: 8,
     marginRight: 12,
@@ -791,7 +878,7 @@ const styles = StyleSheet.create({
   entryQuantity: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#34C759', // Success green for quantities
+    color: '#34C759',
   },
   deleteButton: {
     padding: 8,
@@ -804,7 +891,7 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginVertical: 20,
-    color: '#2A5866', // Primary theme color
+    color: '#2A5866',
   },
   footerLoader: {
     marginVertical: 16,
@@ -814,7 +901,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Slightly lighter overlay
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modalContent: {
     width: '90%',
@@ -837,11 +924,11 @@ const styles = StyleSheet.create({
   modalInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0F4F8', // Light teal-gray
+    backgroundColor: '#F0F4F8',
     borderRadius: 10,
     padding: 12,
     marginVertical: 8,
-    borderWidth: 0, // Removed border for cleaner look
+    borderWidth: 0,
   },
   modalInputField: {
     flex: 1,
@@ -850,7 +937,7 @@ const styles = StyleSheet.create({
   },
   inputIcon: {
     marginRight: 10,
-    color: '#2A5866', // Primary theme color
+    color: '#2A5866',
   },
   inputText: {
     fontSize: 16,
@@ -858,7 +945,7 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     fontSize: 16,
-    color: '#A0AEC0', // Light gray for placeholders
+    color: '#A0AEC0',
   },
   modalButtonContainer: {
     flexDirection: 'row',
@@ -866,7 +953,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   modalButton: {
-    backgroundColor: '#2A5866', // Primary theme color
+    backgroundColor: '#2A5866',
     padding: 14,
     borderRadius: 10,
     flex: 1,
@@ -891,7 +978,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   cancelButtonText: {
-    color: '#2A5866', // Primary theme color
+    color: '#2A5866',
     fontSize: 16,
     fontWeight: '600',
   },

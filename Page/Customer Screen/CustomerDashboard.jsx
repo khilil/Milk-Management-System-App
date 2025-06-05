@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TextInput,
   Alert,
+  RefreshControl, // Added RefreshControl import
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
@@ -17,11 +18,11 @@ import RNFS from 'react-native-fs';
 import { PermissionsAndroid } from 'react-native';
 import { print } from 'react-native-print';
 import { useNavigation } from '@react-navigation/native';
-import { fetchMonthlyConsumption } from '../../database-connect/customer/featch'; // Adjust path as needed
+import { fetchMonthlyConsumption } from '../../database-connect/customer/featch';
 
 const CustomerDashboard = ({ route }) => {
   const navigation = useNavigation();
-  const [customer, setCustomer] = useState(null); // No default user
+  const [customer, setCustomer] = useState(null);
   const [isAdmin, setIsAdmin] = useState(route.params?.isAdmin || false);
   const [milkRecords, setMilkRecords] = useState([]);
   const [filteredRecords, setFilteredRecords] = useState([]);
@@ -30,50 +31,47 @@ const CustomerDashboard = ({ route }) => {
   const [thisMonthPaid, setThisMonthPaid] = useState(false);
   const [previousMonthPaid, setPreviousMonthPaid] = useState(false);
   const [monthlyData, setMonthlyData] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState('current'); // 'current', 'previous', or 'next'
+  const [selectedMonth, setSelectedMonth] = useState('current');
+  const [refreshing, setRefreshing] = useState(false); // Added state for RefreshControl
   const itemsPerPage = 5;
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1; // 1-based for API
+  const currentMonth = currentDate.getMonth() + 1;
 
   // Load customer data from AsyncStorage or route.params
-  useEffect(() => {
-    const loadCustomer = async () => {
-      try {
-        // First, check if customer data is passed via route.params (from login)
-        let userData = route.params?.customer;
-        if (userData) {
-          // Save the customer data to AsyncStorage to persist it
-          await AsyncStorage.setItem('loggedInUser', JSON.stringify(userData));
+  const loadCustomer = useCallback(async () => {
+    try {
+      let userData = route.params?.customer;
+      if (userData) {
+        await AsyncStorage.setItem('loggedInUser', JSON.stringify(userData));
+        setCustomer(userData);
+        setIsAdmin(route.params?.isAdmin || false);
+      } else {
+        const storedData = await AsyncStorage.getItem('loggedInUser');
+        if (storedData) {
+          userData = JSON.parse(storedData);
           setCustomer(userData);
-          setIsAdmin(route.params?.isAdmin || false);
+          setIsAdmin(userData.isAdmin || false);
         } else {
-          // If no route.params, try to retrieve from AsyncStorage
-          const storedData = await AsyncStorage.getItem('loggedInUser');
-          if (storedData) {
-            userData = JSON.parse(storedData);
-            setCustomer(userData);
-            setIsAdmin(userData.isAdmin || false); // Ensure isAdmin is set from stored data
-          } else {
-            // No user data found, redirect to login
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
-          }
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          });
         }
-      } catch (error) {
-        console.error('Error loading customer:', error);
-        Alert.alert('Error', 'Failed to load user data');
-        // Only redirect to login if no user data is found
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Login' }],
-        });
       }
-    };
-    loadCustomer();
+    } catch (error) {
+      console.error('Error loading customer:', error);
+      Alert.alert('Error', 'Failed to load user data');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    }
   }, [navigation, route.params?.customer]);
+
+  useEffect(() => {
+    loadCustomer();
+  }, [loadCustomer]);
 
   // Set navigation options
   useEffect(() => {
@@ -92,20 +90,39 @@ const CustomerDashboard = ({ route }) => {
   }, [navigation, customer]);
 
   // Fetch monthly consumption data
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (!customer) return;
-    const fetchData = async () => {
-      try {
-        const data = await fetchMonthlyConsumption(customer.id, currentYear, currentMonth);
-        setMonthlyData(data);
-        setMilkRecords(data.current_month.daily_records);
-        setFilteredRecords(data.current_month.daily_records);
-      } catch (error) {
-        Alert.alert('Error', error.message);
-      }
-    };
-    fetchData();
+    try {
+      const data = await fetchMonthlyConsumption(customer.id, currentYear, currentMonth);
+      setMonthlyData(data);
+      setMilkRecords(data.current_month.daily_records);
+      setFilteredRecords(data.current_month.daily_records);
+      setThisMonthPaid(data.current_month.paid || false);
+      setPreviousMonthPaid(data.previous_month.paid || false);
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
   }, [customer?.id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Handle pull-to-refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadCustomer(); // Reload customer data
+      await fetchData(); // Refetch monthly consumption data
+      setCurrentPage(1); // Reset pagination
+      setDateFilter(''); // Reset date filter
+      // Alert.alert('Success', 'Data refreshed successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to refresh data');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadCustomer, fetchData]);
 
   // Filter records based on date input
   useEffect(() => {
@@ -118,7 +135,7 @@ const CustomerDashboard = ({ route }) => {
   }, [dateFilter, milkRecords]);
 
   // Update milk records when selected month changes
-  useEffect( ()=> {
+  useEffect(() => {
     if (monthlyData) {
       const records =
         selectedMonth === 'current'
@@ -348,26 +365,12 @@ const CustomerDashboard = ({ route }) => {
                 This Month
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.monthButton,
-                selectedMonth === 'next' && styles.activeMonthButton,
-              ]}
-              onPress={() => toggleMonthView('next')}>
-              <Text
-                style={[
-                  styles.monthButtonText,
-                  selectedMonth === 'next' && styles.activeMonthButtonText,
-                ]}>
-                Next Month
-              </Text>
-            </TouchableOpacity>
           </View>
 
           <View style={styles.statsCard}>
             <View style={styles.statItem}>
               <Icon name="chart-bar" size={24} color="#2A5866" />
-              <Text style={styles.statValue}>{totalMilk.toFixed(2)}L</Text>
+              <Text style={styles.statText}>{totalMilk.toFixed(2)} L</Text>
               <Text style={styles.statLabel}>
                 {selectedMonth === 'current'
                   ? 'This Month'
@@ -379,8 +382,8 @@ const CustomerDashboard = ({ route }) => {
             </View>
             <View style={styles.statItem}>
               <Icon name="currency-inr" size={24} color="#2A5866" />
-              <Text style={styles.statValue}>₹{totalPrice.toFixed(2)}</Text>
-              <Text style={styles.statLabel}>Total Value</Text>
+              <Text style={styles.statText}>₹{totalPrice.toFixed(2)}</Text>
+              <Text style={styles.statLabel}>Total</Text>
             </View>
           </View>
 
@@ -574,6 +577,14 @@ const CustomerDashboard = ({ route }) => {
           customer && filteredRecords.length > itemsPerPage ? renderPagination : null
         }
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2A5866']}
+            tintColor="#2A5866"
+          />
+        }
       />
     </LinearGradient>
   );
@@ -677,7 +688,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '48%',
   },
-  statValue: {
+  statText: {
     fontSize: 20,
     fontWeight: '700',
     color: '#2A5866',
