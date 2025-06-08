@@ -48,7 +48,7 @@ export default function HomeScreen() {
         {/* Header Section */}
         <View style={styles.headerContainer}>
           <View style={styles.userInfo}>
-            <Text style={styles.greeting}>Good Morning, Admin!</Text>
+            <Text style={styles.greeting}>Good Morning, Admin..!</Text>
             <Text style={styles.stats}>Today's Distribution: 1500 L</Text>
           </View>
           <TouchableOpacity style={styles.profileButton}>

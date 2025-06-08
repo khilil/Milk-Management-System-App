@@ -138,7 +138,7 @@ const Customer = () => {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Username</Text>
             <View style={styles.inputWrapper}>
-              <Icon name="account" size={20} color="#4B5EAA" style={styles.inputIcon} />
+              <Icon name="account" size={20} color="#2a5866db" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Enter username"
@@ -153,7 +153,7 @@ const Customer = () => {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Phone Number</Text>
             <View style={styles.inputWrapper}>
-              <Icon name="phone" size={20} color="#4B5EAA" style={styles.inputIcon} />
+              <Icon name="phone" size={20} color="#2a5866db" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Enter 10-digit phone number"
@@ -169,7 +169,7 @@ const Customer = () => {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrapper}>
-              <Icon name="lock" size={20} color="#4B5EAA" style={styles.inputIcon} />
+              <Icon name="lock" size={20} color="#2a5866db" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Enter password (min 6 characters)"
@@ -185,9 +185,9 @@ const Customer = () => {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Address</Text>
             <View style={styles.inputWrapper}>
-              <Icon name="map-marker" size={20} color="#4B5EAA" style={styles.inputIcon} />
+              <Icon name="map-marker" size={20} color="#2a5866db" style={styles.inputIcon} />
               {isLoadingAddresses ? (
-                <ActivityIndicator size="small" color="#4B5EAA" />
+                <ActivityIndicator size="small" color="#2a5866db" />
               ) : (
                 <Picker
                   selectedValue={formData.addressId}
@@ -211,7 +211,7 @@ const Customer = () => {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Price (₹)</Text>
             <View style={styles.inputWrapper}>
-              <Icon name="currency-inr" size={20} color="#4B5EAA" style={styles.inputIcon} />
+              <Icon name="currency-inr" size={20} color="#2a5866db" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Enter price"
@@ -231,7 +231,7 @@ const Customer = () => {
               onPress={() => setShowDatePicker(true)}
               disabled={isSubmitting}
             >
-              <Icon name="calendar" size={20} color="#4B5EAA" style={styles.inputIcon} />
+              <Icon name="calendar" size={20} color="#2a5866db" style={styles.inputIcon} />
               <Text style={styles.dateText}>
                 {formData.startDate.toLocaleDateString()}
               </Text>
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     lineHeight: 48,
   },
   submitButton: {
-    backgroundColor: '#4B5EAA',
+    backgroundColor: '#2a5866db',
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',

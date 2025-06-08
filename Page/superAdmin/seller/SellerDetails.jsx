@@ -27,10 +27,10 @@ const SellerDetails = () => {
         console.log('Fetch Sellers Response:', response.data);
         if (Array.isArray(response.data)) {
           const formattedSellers = response.data.map(seller => ({
-            id: seller.Seller_id.toString(),
-            username: seller.Name,
-            phone: seller.Contact,
-            vehicleNo: seller.Vehicle_no,
+            id: seller.Seller_id?.toString() || '', // Ensure id is a string, handle undefined
+            username: seller.Name || 'Unknown',
+            phone: seller.Contact || '',
+            vehicleNo: seller.Vehicle_no || '',
           }));
           setSellers(formattedSellers);
           setFilteredSellers(formattedSellers);
@@ -39,7 +39,7 @@ const SellerDetails = () => {
           Alert.alert('Error', response.data.message || 'Failed to load sellers');
         }
       } catch (error) {
-        console.error('Fetch Sellers Error:', error);
+        console.error('Fetch Sellers Error:', error.message);
         Alert.alert('Error', 'Failed to connect to server');
       }
     };
@@ -49,8 +49,8 @@ const SellerDetails = () => {
   useEffect(() => {
     const filtered = sellers.filter(
       (seller) =>
-        seller.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        seller.phone.includes(searchQuery)
+        (seller.username?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+        (seller.phone || '').includes(searchQuery)
     );
     setFilteredSellers(filtered);
     setCurrentPage(1);
@@ -64,6 +64,10 @@ const SellerDetails = () => {
   };
 
   const handleDelete = (id) => {
+    if (!id) {
+      Alert.alert('Error', 'Invalid seller ID');
+      return;
+    }
     Alert.alert(
       'Delete Seller',
       'Are you sure you want to delete this seller?',
@@ -90,7 +94,7 @@ const SellerDetails = () => {
                 Alert.alert('Error', response.data.message || 'Failed to delete seller');
               }
             } catch (error) {
-              console.error('Delete Seller Error:', error);
+              console.error('Delete Seller Error:', error.message);
               Alert.alert('Error', 'Failed to connect to server');
             }
           },
@@ -101,6 +105,11 @@ const SellerDetails = () => {
   };
 
   const handleEdit = (seller) => {
+    if (!seller?.id) {
+      Alert.alert('Error', 'Invalid seller data');
+      return;
+    }
+    console.log('Navigating to EditSeller with seller:', seller);
     navigation.navigate('EditSeller', { seller });
   };
 
@@ -123,25 +132,41 @@ const SellerDetails = () => {
   );
 
   const renderSellerItem = ({ item }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.tableRow}
-      onPress={() => navigation.navigate('SellerDetail', { seller: item, isAdmin: true })}
+      onPress={() => {
+        console.log('Navigating to SellerDetailScreen with seller:', item);
+        try {
+          navigation.navigate('SellerDetailScreen', { seller: item, isAdmin: true });
+        } catch (error) {
+          console.error('Navigation Error:', error);
+          Alert.alert('Navigation Error', 'Failed to navigate to Seller Detail Screen');
+        }
+      }}
     >
-      <Text style={[styles.cell, { width: 120 }]} numberOfLines={1} ellipsizeMode="tail">{item.username}</Text>
-      <Text style={[styles.cell, { width: 100 }]} numberOfLines={1} ellipsizeMode="tail">{item.phone}</Text>
-      <Text style={[styles.cell, { width: 100 }]} numberOfLines={1} ellipsizeMode="tail">{item.vehicleNo}</Text>
+      <Text style={[styles.cell, { width: 120 }]} numberOfLines={1} ellipsizeMode="tail">
+        {item.username}
+      </Text>
+      <Text style={[styles.cell, { width: 100 }]} numberOfLines={1} ellipsizeMode="tail">
+        {item.phone}
+      </Text>
+      <Text style={[styles.cell, { width: 100 }]} numberOfLines={1} ellipsizeMode="tail">
+        {item.vehicleNo}
+      </Text>
       <View style={[styles.cell, styles.actionCell, { width: 80 }]}>
-        <TouchableOpacity onPress={(e) => {
-          e.stopPropagation();
-          handleEdit(item);
-        }}>
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            handleEdit(item);
+          }}
+        >
           <Icon name="pencil" size={20} color="#4CAF50" />
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={(e) => {
             e.stopPropagation();
             handleDelete(item.id);
-          }} 
+          }}
           style={styles.deleteButton}
         >
           <Icon name="delete" size={20} color="#FF4444" />
@@ -159,7 +184,6 @@ const SellerDetails = () => {
       >
         <Icon name="chevron-double-left" size={24} color={currentPage === 1 ? '#ccc' : '#fff'} />
       </TouchableOpacity>
-      
       <TouchableOpacity
         style={[styles.navButton, currentPage === 1 && styles.disabledButton]}
         onPress={() => handlePageChange(currentPage - 1)}
@@ -167,27 +191,19 @@ const SellerDetails = () => {
       >
         <Icon name="chevron-left" size={24} color={currentPage === 1 ? '#ccc' : '#fff'} />
       </TouchableOpacity>
-
       <View style={styles.pageNumbers}>
         {Array.from({ length: totalPages }, (_, i) => i + 1)
-          .filter(page => 
-            page === 1 || 
-            page === totalPages || 
-            (page >= currentPage - 1 && page <= currentPage + 1)
-          )
-          .map(page => (
+          .filter((page) => page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1))
+          .map((page) => (
             <TouchableOpacity
               key={page}
               style={[styles.pageButton, currentPage === page && styles.activePageButton]}
               onPress={() => handlePageChange(page)}
             >
-              <Text style={[styles.pageText, currentPage === page && styles.activePageText]}>
-                {page}
-              </Text>
+              <Text style={[styles.pageText, currentPage === page && styles.activePageText]}>{page}</Text>
             </TouchableOpacity>
           ))}
       </View>
-
       <TouchableOpacity
         style={[styles.navButton, currentPage === totalPages && styles.disabledButton]}
         onPress={() => handlePageChange(currentPage + 1)}
@@ -195,7 +211,6 @@ const SellerDetails = () => {
       >
         <Icon name="chevron-right" size={24} color={currentPage === totalPages ? '#ccc' : '#fff'} />
       </TouchableOpacity>
-
       <TouchableOpacity
         style={[styles.navButton, currentPage === totalPages && styles.disabledButton]}
         onPress={() => handlePageChange(totalPages)}
@@ -211,7 +226,6 @@ const SellerDetails = () => {
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Seller Details</Text>
       </View>
-
       <View style={styles.searchContainer}>
         <Icon name="magnify" size={24} color="#666" style={styles.searchIcon} />
         <TextInput
@@ -221,7 +235,6 @@ const SellerDetails = () => {
           onChangeText={setSearchQuery}
         />
       </View>
-
       <View style={styles.tableContainer}>
         <ScrollView horizontal={true} showsHorizontalScrollIndicator={true}>
           <View>
@@ -292,7 +305,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
-    minWidth: 400, // Ensure enough width for all columns
+    minWidth: 400,
   },
   headerCell: {
     color: '#fff',
@@ -307,7 +320,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
     alignItems: 'center',
-    minWidth: 400, // Match header width
+    minWidth: 400,
   },
   cell: {
     fontSize: 14,

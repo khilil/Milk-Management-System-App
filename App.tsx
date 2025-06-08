@@ -23,6 +23,7 @@ import CoustomerMilkAssingDataList from './Page/Seller Screen/Coustomer/Coustome
 import AddAddress from './Page/superAdmin/Address/Address.jsx';
 import AddressSelectionScreen from './Page/Seller Screen/addressSelect/AddressSelect.jsx';
 import GatherPayment from './Page/Seller Screen/gather-payment/gather-payment.jsx';
+import SellerDetailScreen from './Page/superAdmin/seller/SellerDetailScreen.jsx';
 
 const Stack = createNativeStackNavigator();
 
@@ -56,6 +57,8 @@ export default function App() {
         {/* <Stack.Screen name="CoustomerMilkAssingDataList" component={CoustomerMilkAssingDataList} /> */}
 
 
+        {/* <Stack.Screen name="SellerDetails" component={SellerDetails} /> */}
+        <Stack.Screen name="SellerDetailScreen" component={SellerDetailScreen} />
         <Stack.Screen
           name="Home"
           component={HomeScreen}
@@ -96,7 +99,7 @@ export default function App() {
           name="Address"
           component={AddAddress}
           options={{
-            title: 'Dairy Dashboard',
+            title: 'Go To Dashboard',
             headerStyle: {
               backgroundColor: '#2A5866', // Primary color
               elevation: 4,
@@ -114,7 +117,7 @@ export default function App() {
           name="Coustomer"
           component={Coustomer}
           options={{
-            title: 'Dairy Dashboard',
+            title: 'Go To Dashboard',
             headerStyle: {
               backgroundColor: '#2A5866', // Primary color
               elevation: 4,

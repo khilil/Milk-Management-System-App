@@ -116,7 +116,7 @@ const AddressScreen = () => {
           style={styles.deleteButton}
           activeOpacity={0.6}
         >
-          <Icon name="delete" size={18} color="#FFFFFF" />
+          <Icon name="delete" size={24} color="#d4082fdb"/>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -238,6 +238,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    textAlign: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#2A5866',
@@ -246,6 +247,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   inputIcon: {
+    alignItems: 'center',
+    textAlign: 'center',
     marginRight: 8,
     marginTop: 8,
   },
@@ -294,7 +297,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   deleteButton: {
-    backgroundColor: '#FF4444',
+    // backgroundColor: '#FF4444',
+    // Color: '#d4082fdb',
     padding: 8,
     borderRadius: 6,
   },

@@ -199,7 +199,7 @@ const CustomerListScreen = () => {
   return (
     <LinearGradient colors={gradientColors} style={styles.container}>
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Customer Dashboard</Text>
+        <Text style={styles.headerTitle}>Customer List</Text>
         <View style={styles.statsContainer}>
           <View style={styles.statBox}>
             <Text style={styles.statValue}>N/A</Text>
