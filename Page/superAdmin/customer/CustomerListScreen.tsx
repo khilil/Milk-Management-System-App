@@ -107,10 +107,13 @@ const CustomerListScreen = () => {
   );
 
   const renderCustomerItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.tableRow}
-      onPress={() => navigation.navigate('CustomerDetail', { customer: item, isAdmin: true })}
-    >
+<TouchableOpacity
+    style={styles.tableRow}
+    onPress={() => {
+      console.log('Navigating to CustomerDetail with customer:', item);
+      navigation.navigate('CustomerDetail', { customer: item, isAdmin: true });
+    }}
+  >
       <Text style={[styles.cell, { width: 100 }]} numberOfLines={1} ellipsizeMode="tail">
         {item.username || 'N/A'}
       </Text>

@@ -1,74 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import DatePicker from 'react-native-date-picker';
 import XLSX from 'xlsx';
 import RNFS from 'react-native-fs';
 import { PermissionsAndroid } from 'react-native';
 import { print } from 'react-native-print';
 import axios from 'axios';
-import { API_CONFIG } from '../../../database-connect/Apichange';
+import { API_CONFIG } from '../../Apichange'; // Adjust path if needed
+import { fetchSellerDeliveries } from '../../../database-connect/admin/seller/fetchSellerDeliveries'; // Verify path
 
 const SellerDetailScreen = ({ route }) => {
-  const { seller, isAdmin = false } = route.params; // Changed from customer to seller
+  const { seller, isAdmin = false } = route.params;
   const [milkRecords, setMilkRecords] = useState([]);
   const [filteredRecords, setFilteredRecords] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [dateFilter, setDateFilter] = useState('');
-  const [thisMonthPaid, setThisMonthPaid] = useState(false);
-  const [previousMonthPaid, setPreviousMonthPaid] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [openDatePicker, setOpenDatePicker] = useState(false);
   const itemsPerPage = 5;
-  const currentDate = new Date();
-  const currentMonth = currentDate.getMonth();
-  const currentYear = currentDate.getFullYear();
+  const pricePerLiter = 64;
 
-  // Fetch milk records for the seller
   useEffect(() => {
     const fetchMilkRecords = async () => {
       try {
-        const response = await axios.get(`${API_CONFIG.fetchMilkRecords}/${seller.id}`, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          timeout: 5000,
-        });
-        console.log('Fetch Milk Records Response:', response.data);
-        if (Array.isArray(response.data)) {
+        const formattedDate = selectedDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        const response = await fetchSellerDeliveries(seller.id, formattedDate); // Use function directly
+        console.log('Fetch Seller Deliveries Response:', response);
+        if (response.status === 'success') {
           const formattedRecords = response.data.map(record => ({
-            date: record.date, // Assuming API returns date in YYYY-MM-DD format
-            quantity: `${record.quantity} L`, // Assuming API returns quantity as a number
-          })).reverse();
+            date: record.date,
+            customerName: record.customer_name,
+            address: record.address,
+            quantity: `${record.quantity} L`,
+            price: (parseFloat(record.quantity) * pricePerLiter).toFixed(2),
+          }));
           setMilkRecords(formattedRecords);
           setFilteredRecords(formattedRecords);
         } else {
-          Alert.alert('Error', response.data.message || 'Failed to load milk records');
+          Alert.alert('Error', response.message || 'Failed to load delivery records');
         }
       } catch (error) {
-        console.error('Fetch Milk Records Error:', error);
+        console.error('Fetch Seller Deliveries Error:', error);
         Alert.alert('Error', 'Failed to connect to server');
-        // Fallback to sample data if API fails
-        const sampleRecords = Array.from({ length: currentDate.getDate() }, (_, i) => ({
-          date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`,
-          quantity: `${(Math.random() * 10 + 1).toFixed(1)} L`, // Random quantity for demo
-        })).reverse();
-        setMilkRecords(sampleRecords);
-        setFilteredRecords(sampleRecords);
+        setMilkRecords([]);
+        setFilteredRecords([]);
       }
     };
     fetchMilkRecords();
-  }, [seller.id]);
-
-  // Filter records based on date input
-  useEffect(() => {
-    const filtered = milkRecords.filter(record => record.date.includes(dateFilter));
-    setFilteredRecords(filtered);
-    setCurrentPage(1);
-  }, [dateFilter, milkRecords]);
+  }, [seller.id, selectedDate]);
 
   // Calculate totals
-  const totalMilkThisMonth = milkRecords.reduce((sum, record) => sum + parseFloat(record.quantity), 0);
-  const pricePerLiter = 64; // Adjust based on your data
-  const totalPriceThisMonth = totalMilkThisMonth * pricePerLiter;
+  const totalMilk = milkRecords.reduce((sum, record) => sum + parseFloat(record.quantity), 0);
+  const totalPrice = totalMilk * pricePerLiter;
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
 
   const paginatedRecords = filteredRecords.slice(
@@ -95,14 +79,17 @@ const SellerDetailScreen = ({ route }) => {
               try {
                 const response = await axios.put(
                   `${API_CONFIG.updateMilkRecord}/${seller.id}`,
-                  { date: record.date, quantity: parseFloat(newQuantity) },
+                  { date: record.date, customerId: record.customerId, quantity: parseFloat(newQuantity) },
                   { headers: { 'Content-Type': 'application/json' } }
                 );
                 if (response.data.status === 'success') {
                   const updatedRecords = milkRecords.map(r =>
-                    r.date === record.date ? { ...r, quantity: `${newQuantity} L` } : r
+                    r.date === record.date && r.customerName === record.customerName
+                      ? { ...r, quantity: `${newQuantity} L`, price: (parseFloat(newQuantity) * pricePerLiter).toFixed(2) }
+                      : r
                   );
                   setMilkRecords(updatedRecords);
+                  setFilteredRecords(updatedRecords);
                   Alert.alert('Success', 'Record updated successfully');
                 } else {
                   Alert.alert('Error', response.data.message || 'Failed to update record');
@@ -122,7 +109,7 @@ const SellerDetailScreen = ({ route }) => {
     );
   };
 
-  const handleDeleteRecord = (date) => {
+  const handleDeleteRecord = (date, customerName) => {
     Alert.alert(
       'Delete Record',
       'Are you sure you want to delete this record?',
@@ -134,11 +121,12 @@ const SellerDetailScreen = ({ route }) => {
             try {
               const response = await axios.delete(`${API_CONFIG.deleteMilkRecord}/${seller.id}`, {
                 headers: { 'Content-Type': 'application/json' },
-                data: { date },
+                data: { date, customerName },
               });
               if (response.data.status === 'success') {
-                const updatedRecords = milkRecords.filter(r => r.date !== date);
+                const updatedRecords = milkRecords.filter(r => r.date !== date || r.customerName !== customerName);
                 setMilkRecords(updatedRecords);
+                setFilteredRecords(updatedRecords);
                 Alert.alert('Success', 'Record deleted successfully');
               } else {
                 Alert.alert('Error', response.data.message || 'Failed to delete record');
@@ -173,16 +161,18 @@ const SellerDetailScreen = ({ route }) => {
 
       const data = filteredRecords.map(record => ({
         Date: record.date,
+        Customer: record.customerName,
+        Address: record.address,
         Quantity: record.quantity,
-        Price: `₹${parseFloat(record.quantity) * pricePerLiter}`,
+        Price: `₹${record.price}`,
       }));
 
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'MilkRecords');
+      XLSX.utils.book_append_sheet(wb, ws, 'SellerDeliveries');
 
       const wbout = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
-      const filePath = `${RNFS.DownloadDirectoryPath}/MilkRecords_${seller.username}.xlsx`;
+      const filePath = `${RNFS.DownloadDirectoryPath}/SellerDeliveries_${seller.username}.xlsx`;
 
       await RNFS.writeFile(filePath, wbout, 'ascii');
       Alert.alert('Success', `Excel file downloaded to ${filePath}`);
@@ -195,20 +185,12 @@ const SellerDetailScreen = ({ route }) => {
   const handlePrint = async () => {
     try {
       await print({
-        html: `<h1>${seller.username}'s Milk Records</h1><table>${filteredRecords
-          .map(r => `<tr><td>${r.date}</td><td>${r.quantity}</td><td>₹${parseFloat(r.quantity) * pricePerLiter}</td></tr>`)
+        html: `<h1>${seller.username}'s Delivery Records</h1><table>${filteredRecords
+          .map(r => `<tr><td>${r.date}</td><td>${r.customerName}</td><td>${r.address}</td><td>${r.quantity}</td><td>₹${r.price}</td></tr>`)
           .join('')}</table>`,
       });
     } catch (error) {
       Alert.alert('Error', 'Failed to print.');
-    }
-  };
-
-  const togglePayment = (month) => {
-    if (month === 'this') {
-      setThisMonthPaid(!thisMonthPaid);
-    } else if (month === 'previous') {
-      setPreviousMonthPaid(!previousMonthPaid);
     }
   };
 
@@ -239,12 +221,12 @@ const SellerDetailScreen = ({ route }) => {
       <View style={styles.statsCard}>
         <View style={styles.statItem}>
           <Icon name="chart-bar" size={24} color="#2A5866" />
-          <Text style={styles.statValue}>{totalMilkThisMonth.toFixed(1)}L</Text>
-          <Text style={styles.statLabel}>Monthly Milk</Text>
+          <Text style={styles.statValue}>{totalMilk.toFixed(1)}L</Text>
+          <Text style={styles.statLabel}>Daily Milk</Text>
         </View>
         <View style={styles.statItem}>
           <Icon name="currency-inr" size={24} color="#2A5866" />
-          <Text style={styles.statValue}>₹{totalPriceThisMonth.toFixed(2)}</Text>
+          <Text style={styles.statValue}>₹{totalPrice.toFixed(2)}</Text>
           <Text style={styles.statLabel}>Total Value</Text>
         </View>
       </View>
@@ -259,65 +241,49 @@ const SellerDetailScreen = ({ route }) => {
           <Icon name="truck" size={18} color="#2A5866" />
           <Text style={styles.infoText}>Vehicle No: {seller.vehicleNo}</Text>
         </View>
-        <View style={styles.divider} />
-        <View style={styles.infoRow}>
-          <Icon name="cash-check" size={18} color="#2A5866" />
-          <Text style={styles.infoText}>
-            Previous Month Paid: {previousMonthPaid ? 'Yes' : 'No'}
-            {isAdmin && (
-              <TouchableOpacity onPress={() => togglePayment('previous')} style={styles.toggleButton}>
-                <Text style={styles.toggleText}>{previousMonthPaid ? 'Unmark' : 'Mark'}</Text>
-              </TouchableOpacity>
-            )}
-          </Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.infoRow}>
-          <Icon name="cash-clock" size={18} color="#2A5866" />
-          <Text style={styles.infoText}>
-            This Month Paid: {thisMonthPaid ? 'Yes' : 'No'}
-            {isAdmin && (
-              <TouchableOpacity onPress={() => togglePayment('this')} style={styles.toggleButton}>
-                <Text style={styles.toggleText}>{thisMonthPaid ? 'Unmark' : 'Mark'}</Text>
-              </TouchableOpacity>
-            )}
-          </Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.infoRow}>
-          <Icon name="cash" size={18} color="#2A5866" />
-          <Text style={styles.infoText}>
-            Next Month Due: {thisMonthPaid ? '₹0' : `₹${totalPriceThisMonth.toFixed(2)}`}
-          </Text>
-        </View>
       </View>
 
       <View style={styles.filterContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by date (YYYY-MM-DD)"
-          placeholderTextColor="#90A4AE"
-          value={dateFilter}
-          onChangeText={setDateFilter}
+        <TouchableOpacity
+          style={styles.datePickerButton}
+          onPress={() => setOpenDatePicker(true)}
+        >
+          <Icon name="calendar" size={24} color="#2A5866" style={styles.searchIcon} />
+          <Text style={styles.datePickerText}>
+            {selectedDate.toISOString().split('T')[0]}
+          </Text>
+        </TouchableOpacity>
+        <DatePicker
+          modal
+          open={openDatePicker}
+          date={selectedDate}
+          mode="date"
+          onConfirm={(date) => {
+            setOpenDatePicker(false);
+            setSelectedDate(date);
+            setCurrentPage(1);
+          }}
+          onCancel={() => setOpenDatePicker(false)}
         />
-        <Icon name="magnify" size={24} color="#2A5866" style={styles.searchIcon} />
       </View>
 
-      <Text style={styles.sectionTitle}>Milk Distribution History</Text>
+      <Text style={styles.sectionTitle}>Daily Delivery History</Text>
     </>
   );
 
   const renderMilkRecord = ({ item }) => (
     <View style={styles.recordRow}>
       <Text style={[styles.recordCell, { flex: 2 }]}>{item.date}</Text>
+      <Text style={[styles.recordCell, { flex: 2 }]}>{item.customerName}</Text>
+      <Text style={[styles.recordCell, { flex: 2 }]}>{item.address}</Text>
       <Text style={[styles.recordCell, { flex: 1 }]}>{item.quantity}</Text>
-      <Text style={[styles.recordCell, { flex: 1 }]}>₹{parseFloat(item.quantity) * pricePerLiter}</Text>
+      <Text style={[styles.recordCell, { flex: 1 }]}>₹{item.price}</Text>
       {isAdmin && (
         <View style={[styles.recordCell, { flex: 1, flexDirection: 'row', justifyContent: 'space-around' }]}>
           <TouchableOpacity onPress={() => handleEditRecord(item)}>
             <Icon name="pencil" size={20} color="#4CAF50" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleDeleteRecord(item.date)}>
+          <TouchableOpacity onPress={() => handleDeleteRecord(item.date, item.customerName)}>
             <Icon name="delete" size={20} color="#FF4444" />
           </TouchableOpacity>
         </View>
@@ -363,13 +329,13 @@ const SellerDetailScreen = ({ route }) => {
     <LinearGradient colors={['#F8F9FB', '#EFF2F6']} style={styles.container}>
       <FlatList
         data={paginatedRecords}
-        keyExtractor={(item) => item.date}
+        keyExtractor={(item) => `${item.date}-${item.customerName}`}
         renderItem={renderMilkRecord}
         ListHeaderComponent={<HeaderContent />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Icon name="database-remove" size={48} color="#CFD8DC" />
-            <Text style={styles.emptyText}>No records found</Text>
+            <Text style={styles.emptyText}>No records found for selected date</Text>
           </View>
         }
         ListFooterComponent={filteredRecords.length > itemsPerPage ? renderPagination : null}
@@ -484,18 +450,6 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     flex: 1,
   },
-  toggleButton: {
-    backgroundColor: '#2A5866',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    marginLeft: 10,
-  },
-  toggleText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
   divider: {
     height: 1,
     backgroundColor: '#ECEFF1',
@@ -505,19 +459,22 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     position: 'relative',
   },
-  searchInput: {
+  datePickerButton: {
+    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingVertical: 14,
-    paddingHorizontal: 48,
-    fontSize: 16,
-    color: '#2A5866',
+    paddingHorizontal: 16,
+    alignItems: 'center',
     elevation: 2,
   },
+  datePickerText: {
+    fontSize: 16,
+    color: '#2A5866',
+    marginLeft: 12,
+  },
   searchIcon: {
-    position: 'absolute',
-    left: 16,
-    top: 16,
+    marginRight: 8,
   },
   sectionTitle: {
     fontSize: 18,
