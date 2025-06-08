@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -115,10 +115,10 @@ const SellerDetails = () => {
 
   const renderHeader = () => (
     <View style={styles.tableHeader}>
-      <Text style={[styles.headerCell, { flex: 2 }]}>Name</Text>
-      <Text style={[styles.headerCell, { flex: 2 }]}>Phone</Text>
-      <Text style={[styles.headerCell, { flex: 2 }]}>Vehicle No</Text>
-      <Text style={[styles.headerCell, { flex: 1 }]}>Actions</Text>
+      <Text style={[styles.headerCell, { width: 120 }]}>Name</Text>
+      <Text style={[styles.headerCell, { width: 100 }]}>Phone</Text>
+      <Text style={[styles.headerCell, { width: 110 }]}>Vehicle No</Text>
+      <Text style={[styles.headerCell, { width: 100 }]}>Actions</Text>
     </View>
   );
 
@@ -127,10 +127,10 @@ const SellerDetails = () => {
       style={styles.tableRow}
       onPress={() => navigation.navigate('SellerDetail', { seller: item, isAdmin: true })}
     >
-      <Text style={[styles.cell, { flex: 2 }]}>{item.username}</Text>
-      <Text style={[styles.cell, { flex: 2 }]}>{item.phone}</Text>
-      <Text style={[styles.cell, { flex: 2 }]}>{item.vehicleNo}</Text>
-      <View style={[styles.cell, styles.actionCell, { flex: 1 }]}>
+      <Text style={[styles.cell, { width: 120 }]} numberOfLines={1} ellipsizeMode="tail">{item.username}</Text>
+      <Text style={[styles.cell, { width: 100 }]} numberOfLines={1} ellipsizeMode="tail">{item.phone}</Text>
+      <Text style={[styles.cell, { width: 100 }]} numberOfLines={1} ellipsizeMode="tail">{item.vehicleNo}</Text>
+      <View style={[styles.cell, styles.actionCell, { width: 80 }]}>
         <TouchableOpacity onPress={(e) => {
           e.stopPropagation();
           handleEdit(item);
@@ -223,13 +223,17 @@ const SellerDetails = () => {
       </View>
 
       <View style={styles.tableContainer}>
-        {renderHeader()}
-        <FlatList
-          data={visibleSellers}
-          keyExtractor={(item) => item.id}
-          renderItem={renderSellerItem}
-          ListEmptyComponent={<Text style={styles.emptyText}>No sellers found</Text>}
-        />
+        <ScrollView horizontal={true} showsHorizontalScrollIndicator={true}>
+          <View>
+            {renderHeader()}
+            <FlatList
+              data={visibleSellers}
+              keyExtractor={(item) => item.id}
+              renderItem={renderSellerItem}
+              ListEmptyComponent={<Text style={styles.emptyText}>No sellers found</Text>}
+            />
+          </View>
+        </ScrollView>
         {filteredSellers.length > 0 && renderPagination()}
       </View>
     </LinearGradient>
@@ -245,8 +249,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '700',
     color: '#2A5866',
     marginBottom: 10,
   },
@@ -254,14 +258,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 15,
-    elevation: 2,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   searchInput: {
     flex: 1,
-    height: 45,
+    height: 50,
     fontSize: 16,
     color: '#333',
   },
@@ -270,41 +278,50 @@ const styles = StyleSheet.create({
   },
   tableContainer: {
     backgroundColor: '#fff',
-    borderRadius: 8,
-    elevation: 2,
+    borderRadius: 12,
+    elevation: 3,
     flex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#2A5866',
-    paddingVertical: 10,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+    paddingVertical: 12,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    minWidth: 400, // Ensure enough width for all columns
   },
   headerCell: {
     color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
+    fontWeight: '700',
+    fontSize: 13,
     textAlign: 'center',
+    paddingHorizontal: 8,
   },
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#f0f0f0',
     alignItems: 'center',
+    minWidth: 400, // Match header width
   },
   cell: {
     fontSize: 14,
     color: '#333',
     textAlign: 'center',
+    paddingHorizontal: 8,
   },
   actionCell: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    alignItems: 'center',
   },
   deleteButton: {
-    marginLeft: 10,
+    marginLeft: 12,
   },
   emptyText: {
     textAlign: 'center',
@@ -320,8 +337,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#eee',
     backgroundColor: '#f9f9f9',
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
   },
   navButton: {
     backgroundColor: '#2A5866',

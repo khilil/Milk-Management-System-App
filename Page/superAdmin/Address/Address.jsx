@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, FlatList, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import LinearGradient from 'react-native-linear-gradient';
+import { StyleSheet } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import styles from '../../../css/styles';
 import addAddress from '../../../database-connect/admin/add Address/addAddress';
 import fetchAddresh from '../../../database-connect/admin/add Address/fetchAddresh';
+// import deleteAddress from '../../../database-connect/admin/add Address/deleteAddress';
 
 const AddressScreen = () => {
   const [formData, setFormData] = useState({ address: '' });
@@ -97,107 +97,70 @@ const AddressScreen = () => {
     );
   };
 
-const renderHeader = () => (
-    <View style={[styles.tableHeader, {
-      backgroundColor: '#2A5866',
-      borderTopLeftRadius: 8,
-      borderTopRightRadius: 8,
-      paddingVertical: 12,
-      marginBottom: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
-    }]}>
-      <Text style={[styles.headerCell, {
-        flex: 3,
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-        textAlign: 'left',
-        paddingLeft: 16,
-      }]}>Address</Text>
-      <View style={{ width: 16 }} /> {/* Spacer */}
-      <Text style={[styles.headerCell, {
-        flex: 1,
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-        textAlign: 'center',
-      }]}>Actions</Text>
-    </View>
-);
-
-  const renderAddressItem = ({ item }) => (
-    <View style={{
-      flexDirection: 'row',
-      backgroundColor: '#FFFFFF',
-      borderRadius: 8,
-      marginBottom: 8,
-      padding: 16,
-      elevation: 2,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-    }}>
-      <Text style={[styles.cell, {
-        flex: 3,
-        color: '#333',
-        fontSize: 14,
-        lineHeight: 20,
-      }]}>{item.address}</Text>
-      <View style={[styles.cell, styles.actionCell, {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }]}>
-        <TouchableOpacity
-          onPress={() => handleDelete(item.id)}
-          style={[styles.deleteButton, {
-            padding: 6,
-            backgroundColor: '#FF4444',
-            borderRadius: 10,
-          }]}
-        >
-          <Icon name="delete" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+  const renderHeader = () => (
+    <View style={styles.tableHeader}>
+      <Text style={[styles.headerCell, { flex: 3 }]}>Address</Text>
+      <Text style={[styles.headerCell, { flex: 1, textAlign: 'center' }]}>Action</Text>
     </View>
   );
 
-  return (
-    <LinearGradient colors={['#F8F9FB', '#FFFFFF']} style={styles.container}>
-      <ScrollView contentContainerStyle={styles.formContainer}>
-        <Text style={styles.formTitle}>Add Address</Text>
+  const renderAddressItem = ({ item, index }) => (
+    <TouchableOpacity
+      style={[styles.tableRow, { backgroundColor: index % 2 === 0 ? '#FFFFFF' : '#F8F9FB' }]}
+      activeOpacity={0.7}
+    >
+      <Text style={[styles.cell, { flex: 3 }]}>{item.address}</Text>
+      <View style={[styles.cell, { flex: 1, justifyContent: 'center', alignItems: 'center' }]}>
+        <TouchableOpacity
+          onPress={() => handleDelete(item.id)}
+          style={styles.deleteButton}
+          activeOpacity={0.6}
+        >
+          <Icon name="delete" size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
 
-        <View style={styles.inputContainer}>
-          <Icon name="map-marker" size={20} color="#2A5866" style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Address"
-            value={formData.address}
-            onChangeText={(text) => handleInputChange('address', text)}
-            multiline
-            numberOfLines={3}
-          />
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.header}>
+          <Text style={styles.formTitle}>Manage Addresses</Text>
+          <Text style={styles.subtitle}>Add and organize addresses efficiently</Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.submitButton, isSubmitting && { opacity: 0.6 }]}
-          onPress={handleSubmit}
-          disabled={isSubmitting}
-        >
-          <LinearGradient
-            colors={['#2A5866', '#6C9A8B']}
-            style={styles.gradientButton}
+        <View style={styles.formCard}>
+          <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
+              <Icon name="map-marker" size={20} color="#2A5866" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter new address"
+                placeholderTextColor="#A0AEC0"
+                value={formData.address}
+                onChangeText={(text) => handleInputChange('address', text)}
+                multiline
+                numberOfLines={2}
+                editable={!isSubmitting}
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.submitButton, isSubmitting && styles.disabledButton]}
+            onPress={handleSubmit}
+            disabled={isSubmitting}
+            activeOpacity={0.6}
           >
             <Text style={styles.submitButtonText}>
               {isSubmitting ? 'Adding...' : 'Add Address'}
             </Text>
-          </LinearGradient>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
 
-        <View style={[styles.tableContainer, { marginTop: 24 }]}>
-          {renderHeader()}
+        <View style={styles.listCard}>
+          <Text style={styles.sectionTitle}>Address List</Text>
           {isLoading ? (
             <ActivityIndicator
               size="large"
@@ -205,18 +168,145 @@ const renderHeader = () => (
               style={styles.loader}
             />
           ) : (
-            <FlatList
-              data={addresses}
-              keyExtractor={item => item.id.toString()}
-              renderItem={renderAddressItem}
-              ListEmptyComponent={<Text style={styles.emptyText}>No addresses found</Text>}
-              scrollEnabled={false}
-            />
+            <>
+              {renderHeader()}
+              <FlatList
+                data={addresses}
+                keyExtractor={item => item.id.toString()}
+                renderItem={renderAddressItem}
+                ListEmptyComponent={<Text style={styles.emptyText}>No addresses found</Text>}
+                scrollEnabled={false}
+              />
+            </>
           )}
         </View>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FB',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    padding: 16,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  formTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2A5866',
+  },
+  subtitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#2A5866',
+    marginTop: 4,
+  },
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+  },
+  listCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2A5866',
+    marginBottom: 12,
+  },
+  inputContainer: {
+    marginBottom: 12,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#2A5866',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  inputIcon: {
+    marginRight: 8,
+    marginTop: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: '#2A5866',
+    minHeight: 48,
+  },
+  submitButton: {
+    backgroundColor: '#2A5866',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#A0AEC0',
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#2A5866',
+    borderRadius: 8,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  headerCell: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    paddingHorizontal: 12,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  cell: {
+    fontSize: 14,
+    color: '#2A5866',
+    lineHeight: 20,
+  },
+  deleteButton: {
+    backgroundColor: '#FF4444',
+    padding: 8,
+    borderRadius: 6,
+  },
+  loader: {
+    marginVertical: 16,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#2A5866',
+    textAlign: 'center',
+    marginVertical: 16,
+  },
+});
 
 export default AddressScreen;

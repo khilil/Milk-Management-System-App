@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import HomeScreen from './Page/superAdmin/Home';
-import Coustomer from './Page/superAdmin/coustomer/Coustomer';
-import CustomerListScreen from './Page/superAdmin/coustomer/CustomerListScreen';
-import CustomerDetailScreen from './Page/superAdmin/coustomer/CustomerDetailScreen';
+import Coustomer from './Page/superAdmin/customer/Customer';
+import CustomerListScreen from './Page/superAdmin/customer/CustomerListScreen';
+import CustomerDetailScreen from './Page/superAdmin/customer/CustomerDetailScreen';
 // import AddSeller from './Page/superAdmin/Seller/addSeller';
 import PaymentScreen from './Page/superAdmin/Payments/Payments';
 import MonthlyReports from './Page/superAdmin/Monthly Reports/monthlyReports';
@@ -22,6 +22,7 @@ import CoustomerMilkAssingDataList from './Page/Seller Screen/Coustomer/Coustome
 // import AddAddress from './Page/superAdmin/Address/AddAddress'
 import AddAddress from './Page/superAdmin/Address/Address.jsx';
 import AddressSelectionScreen from './Page/Seller Screen/addressSelect/AddressSelect.jsx';
+import GatherPayment from './Page/Seller Screen/gather-payment/gather-payment.jsx';
 
 const Stack = createNativeStackNavigator();
 
@@ -72,6 +73,7 @@ export default function App() {
             },
           }}
         />
+
         <Stack.Screen
           name="addressSelect"
           component={AddressSelectionScreen}
@@ -183,6 +185,24 @@ export default function App() {
         <Stack.Screen
           name="Payments"
           component={PaymentScreen}
+          options={{
+            title: 'Customer List',
+            headerStyle: {
+              backgroundColor: '#2A5866',
+              elevation: 4,
+            },
+            headerTintColor: '#FFFFFF',
+            headerTitleStyle: {
+              fontSize: 20,
+              fontWeight: '600',
+              letterSpacing: 1,
+            },
+          }}
+        />
+
+        <Stack.Screen
+          name="gather payment"
+          component={GatherPayment}
           options={{
             title: 'Customer List',
             headerStyle: {

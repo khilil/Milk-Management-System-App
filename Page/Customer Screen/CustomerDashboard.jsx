@@ -7,7 +7,9 @@ import {
   StyleSheet,
   TextInput,
   Alert,
-  RefreshControl, // Added RefreshControl import
+  RefreshControl,
+  Linking, // Added for opening settings
+  Platform, // Added for platform-specific checks
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
@@ -32,7 +34,7 @@ const CustomerDashboard = ({ route }) => {
   const [previousMonthPaid, setPreviousMonthPaid] = useState(false);
   const [monthlyData, setMonthlyData] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState('current');
-  const [refreshing, setRefreshing] = useState(false); // Added state for RefreshControl
+  const [refreshing, setRefreshing] = useState(false);
   const itemsPerPage = 5;
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
@@ -89,7 +91,7 @@ const CustomerDashboard = ({ route }) => {
     }
   }, [navigation, customer]);
 
-  // Fetch monthly consumption data
+  // Fetch monthly consumption and payment data
   const fetchData = useCallback(async () => {
     if (!customer) return;
     try {
@@ -97,8 +99,8 @@ const CustomerDashboard = ({ route }) => {
       setMonthlyData(data);
       setMilkRecords(data.current_month.daily_records);
       setFilteredRecords(data.current_month.daily_records);
-      setThisMonthPaid(data.current_month.paid || false);
-      setPreviousMonthPaid(data.previous_month.paid || false);
+      setThisMonthPaid(data.current_month.paid);
+      setPreviousMonthPaid(data.previous_month.paid);
     } catch (error) {
       Alert.alert('Error', error.message);
     }
@@ -112,11 +114,10 @@ const CustomerDashboard = ({ route }) => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await loadCustomer(); // Reload customer data
-      await fetchData(); // Refetch monthly consumption data
-      setCurrentPage(1); // Reset pagination
-      setDateFilter(''); // Reset date filter
-      // Alert.alert('Success', 'Data refreshed successfully');
+      await loadCustomer();
+      await fetchData();
+      setCurrentPage(1);
+      setDateFilter('');
     } catch (error) {
       Alert.alert('Error', 'Failed to refresh data');
     } finally {
@@ -245,24 +246,47 @@ const CustomerDashboard = ({ route }) => {
 
   const downloadExcel = async () => {
     try {
-      const isPermitted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-      );
-      if (!isPermitted) {
-        const granted = await PermissionsAndroid.request(
+      // Only request permission for Android API < 30 (Android 10 and below)
+      let hasPermission = true;
+      let filePath = `${RNFS.DownloadDirectoryPath}/MilkRecords_${customer?.username || 'User'}_${Date.now()}.xlsx`;
+
+      if (Platform.OS === 'android' && Platform.Version < 30) {
+        const isPermitted = await PermissionsAndroid.check(
           PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-          {
-            title: 'Storage Permission Needed',
-            message: 'This app needs access to storage to download the Excel file.',
-            buttonPositive: 'OK',
-          },
         );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert('Permission Denied', 'Cannot download file without storage permission.');
-          return;
+
+        if (!isPermitted) {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+            {
+              title: 'Storage Permission Needed',
+              message: 'This app needs access to your storage to save the Milk Records Excel file to your Downloads folder.',
+              buttonNeutral: 'Ask Me Later',
+              buttonNegative: 'Cancel',
+              buttonPositive: 'OK',
+            },
+          );
+
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            // Permission denied, fall back to app-specific directory
+            hasPermission = false;
+            filePath = `${RNFS.DocumentDirectoryPath}/MilkRecords_${customer?.username || 'User'}_${Date.now()}.xlsx`;
+            Alert.alert(
+              'Permission Denied',
+              `Storage permission was not granted. The file will be saved to the app's internal storage at ${filePath}. You can access it via a file manager or enable permission in Settings.`,
+              [
+                { text: 'OK' },
+                {
+                  text: 'Open Settings',
+                  onPress: () => Linking.openSettings(),
+                },
+              ],
+            );
+          }
         }
       }
 
+      // Prepare Excel data
       const data = filteredRecords.map(record => ({
         Date: record.date,
         Quantity: record.quantity,
@@ -274,13 +298,18 @@ const CustomerDashboard = ({ route }) => {
       XLSX.utils.book_append_sheet(wb, ws, 'MilkRecords');
 
       const wbout = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
-      const filePath = `${RNFS.DownloadDirectoryPath}/MilkRecords_${customer?.username || 'User'}.xlsx`;
 
+      // Write file to the chosen path
       await RNFS.writeFile(filePath, wbout, 'ascii');
-      Alert.alert('Success', `Excel file downloaded to ${filePath}`);
+
+      Alert.alert(
+        'Success',
+        `Excel file saved to ${filePath}${hasPermission ? ' in your Downloads folder' : '. Use a file manager to access it.'}`,
+        [{ text: 'OK' }],
+      );
     } catch (error) {
       console.error('Error downloading Excel:', error);
-      Alert.alert('Error', 'Failed to download Excel file.');
+      Alert.alert('Error', 'Failed to save Excel file. Please try again.');
     }
   };
 
@@ -403,7 +432,10 @@ const CustomerDashboard = ({ route }) => {
             <View style={styles.infoRow}>
               <Icon name="cash-check" size={18} color="#2A5866" />
               <Text style={styles.infoText}>
-                Previous Month Paid: {previousMonthPaid ? 'Yes' : 'No'}
+                Previous Month Payment:{' '}
+                <Text style={previousMonthPaid ? styles.paidText : styles.pendingText}>
+                  {previousMonthPaid ? 'Paid' : 'Pending'}
+                </Text>
                 {isAdmin && (
                   <TouchableOpacity
                     onPress={() => togglePayment('previous')}
@@ -419,7 +451,10 @@ const CustomerDashboard = ({ route }) => {
             <View style={styles.infoRow}>
               <Icon name="cash-clock" size={18} color="#2A5866" />
               <Text style={styles.infoText}>
-                This Month Paid: {thisMonthPaid ? 'Yes' : 'No'}
+                This Month Payment:{' '}
+                <Text style={thisMonthPaid ? styles.paidText : styles.pendingText}>
+                  {thisMonthPaid ? 'Paid' : 'Pending'}
+                </Text>
                 {isAdmin && (
                   <TouchableOpacity
                     onPress={() => togglePayment('this')}
@@ -717,6 +752,14 @@ const styles = StyleSheet.create({
     color: '#546E7A',
     marginLeft: 12,
     flex: 1,
+  },
+  paidText: {
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  pendingText: {
+    color: '#FF9800',
+    fontWeight: '600',
   },
   toggleButton: {
     backgroundColor: '#2A5866',

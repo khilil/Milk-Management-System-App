@@ -13,7 +13,7 @@ const features = [
   { id: '2', name: 'Select Area', icon: 'map', color: '#34495e' ,screen: 'addressSelect'},//! change kr va nu ch 
   { id: '3', name: 'Coustomer Milk Data', icon: 'cup-water', color: '#2ecc71' ,screen: 'CoustomerMilkAssingDataList'},//! change kr va nu ch 
   { id: '4', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments'},
-  // { id: '5', name: 'Daily Reports', icon: 'chart-bar', color: '#1abc9c', screen: 'MonthlyReports' },
+  { id: '5', name: 'Gather Payment', icon: 'chart-bar', color: '#1abc9c', screen: 'gather payment'},
   { id: '5', name: 'Milk Assiging', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
   // { id: '7', name: 'Seller Details', icon: 'bell', color: '#f1c40f', screen: 'seller details' },
   // { id: '8', name: 'Customer Feedback', icon: 'message-text', color: '#34495e' },

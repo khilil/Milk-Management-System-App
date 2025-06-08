@@ -1,403 +1,322 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
-  Button,
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Picker } from '@react-native-picker/picker';
+import Toast from 'react-native-toast-message';
+import { fetchSellers, fetchPaymentsBySeller, fetchPaymentsForSeller } from '../../../database-connect/admin/paymentApi/paymentApi';
 
 const PaymentScreen = () => {
+  const [userRole, setUserRole] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [sellers, setSellers] = useState([]);
+  const [selectedSellerId, setSelectedSellerId] = useState(null);
   const [payments, setPayments] = useState([]);
   const [filteredPayments, setFilteredPayments] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
   const [showPicker, setShowPicker] = useState(false);
-  const [filteredCustomers, setFilteredCustomers] = useState([]);
-  const [visibleCustomers, setVisibleCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [customers, setCustomers] = useState([]);
   const itemsPerPage = 5;
+  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
 
-  // Sample payment data
-  const samplePayments = [
-    {
-      id: '1',
-      saller: 'Patel',
-      name: 'John Doe',
-      phone: '1234567890',
-      amount: '1500',
-      status: 'Paid',
-      date: '2023-10-15',
-    },
-    {
-      id: '2',
-      saller: 'Patel',
-      name: 'Jane Smith',
-      phone: '9876543210',
-      amount: '2000',
-      status: 'Pending',
-      date: '2023-10-16',
-    },
-    {
-      id: '3',
-      saller: 'Patel',
-      name: 'Robert Johnson',
-      phone: '5551234567',
-      amount: '1800',
-      status: 'Paid',
-      date: '2023-10-17',
-    },
-    {
-      id: '4',
-      saller: 'Patel',
-      name: 'Emily Davis',
-      phone: '4445556666',
-      amount: '2200',
-      status: 'Pending',
-      date: '2023-10-18',
-    },
-    {
-      id: '5',
-      saller: 'Patel',
-      name: 'Michael Wilson',
-      phone: '7778889999',
-      amount: '1900',
-      status: 'Paid',
-      date: '2023-10-19',
-    },
-    {
-      id: '6',
-      saller: 'Patel',
-      name: 'Khilil Patel',
-      phone: '1112223333',
-      amount: '2100',
-      status: 'Pending',
-      date: '2023-10-20',
-    },
-    {
-      id: '7',
-      saller: 'Sharma',
-      name: 'David White',
-      phone: '2223334444',
-      amount: '2300',
-      status: 'Paid',
-      date: '2023-10-21',
-    },
-    {
-      id: '8',
-      saller: 'Sharma',
-      name: 'Sophia Brown',
-      phone: '3334445555',
-      amount: '2500',
-      status: 'Pending',
-      date: '2023-10-22',
-    },
-    {
-      id: '9',
-      saller: 'Sharma',
-      name: 'William Taylor',
-      phone: '4445556667',
-      amount: '2400',
-      status: 'Paid',
-      date: '2023-10-23',
-    },
-    {
-      id: '10',
-      saller: 'Sharma',
-      name: 'Emma Thomas',
-      phone: '5556667778',
-      amount: '2600',
-      status: 'Pending',
-      date: '2023-10-24',
-    },
-    {
-      id: '11',
-      saller: 'Verma',
-      name: 'Daniel Martinez',
-      phone: '6667778889',
-      amount: '1800',
-      status: 'Paid',
-      date: '2023-10-25',
-    },
-    {
-      id: '12',
-      saller: 'Verma',
-      name: 'Olivia Harris',
-      phone: '7778889990',
-      amount: '2700',
-      status: 'Pending',
-      date: '2023-10-26',
-    },
-    {
-      id: '13',
-      saller: 'Verma',
-      name: 'James Clark',
-      phone: '8889990001',
-      amount: '1950',
-      status: 'Paid',
-      date: '2023-10-27',
-    },
-    {
-      id: '14',
-      saller: 'Verma',
-      name: 'Isabella Lewis',
-      phone: '9990001112',
-      amount: '2800',
-      status: 'Pending',
-      date: '2023-10-28',
-    },
-    {
-      id: '15',
-      saller: 'Kapoor',
-      name: 'Alexander Walker',
-      phone: '0001112223',
-      amount: '2900',
-      status: 'Paid',
-      date: '2023-10-29',
-    },
-    {
-      id: '16',
-      saller: 'Kapoor',
-      name: 'Mia Young',
-      phone: '1112223334',
-      amount: '3000',
-      status: 'Pending',
-      date: '2023-10-30',
-    },
-    {
-      id: '17',
-      saller: 'Kapoor',
-      name: 'Benjamin Hall',
-      phone: '2223334445',
-      amount: '3100',
-      status: 'Paid',
-      date: '2023-10-31',
-    },
-    {
-      id: '18',
-      saller: 'Kapoor',
-      name: 'Charlotte Allen',
-      phone: '3334445556',
-      amount: '3200',
-      status: 'Pending',
-      date: '2023-11-01',
-    }
-  ];
-  
-  
-console.log(samplePayments[0].saller);
-
-
-const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
-
-const handlePageChange = (newPage) => {
-  if (newPage >= 1 && newPage <= totalPages) {
-    setCurrentPage(newPage);
-    updateVisibleCustomers(filteredCustomers, newPage);
-  }
-};
-
-const updateVisibleCustomers = (filtered, page) => {
-  const startIndex = (page - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  setVisibleCustomers(filtered.slice(startIndex, endIndex));
-};
-
+  // Load user data and initialize
   useEffect(() => {
+    const initialize = async () => {
+      try {
+        setLoading(true);
+        const role = await AsyncStorage.getItem('userRole');
+        const id = await AsyncStorage.getItem('userId');
+        if (!role || !id) {
+          throw new Error('User not logged in');
+        }
+        setUserRole(role);
+        setUserId(parseInt(id, 10));
 
-    const filtered = customers.filter(
-      (customer) =>
-        customer.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        customer.phone.includes(searchQuery)
-    );
-
-    loadPayments();
-    setFilteredCustomers(samplePayments);
-    setCurrentPage(1);
-    updateVisibleCustomers(filtered, 1);
+        if (role === 'admin') {
+          // Fetch all sellers for admin
+          const sellerData = await fetchSellers();
+          setSellers(sellerData);
+          if (sellerData.length > 0) {
+            setSelectedSellerId(sellerData[0].Seller_id);
+          }
+        } else if (role === 'seller') {
+          // Fetch payments for logged-in seller
+          const paymentData = await fetchPaymentsForSeller(id);
+          setPayments(paymentData);
+          setFilteredPayments(paymentData);
+        }
+      } catch (error) {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: error.message || 'Failed to load data',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    initialize();
   }, []);
 
-  const loadPayments = async () => {
-    try {
-      const storedPayments = await AsyncStorage.getItem('');
-      if (storedPayments) {
-        const data = JSON.parse(storedPayments);
-        setPayments(data);
-        setFilteredPayments(data);
-      } else {
-        // Initialize with sample data if no payments exist
-        await AsyncStorage.setItem('payments', JSON.stringify(samplePayments));
-        setPayments(samplePayments);
-        setFilteredPayments(samplePayments);
-      }
-    } catch (error) {
-      console.error('Error loading payments:', error);
+  // Fetch payments when admin selects a seller
+  useEffect(() => {
+    if (userRole === 'admin' && selectedSellerId) {
+      const loadPayments = async () => {
+        try {
+          setLoading(true);
+          const paymentData = await fetchPaymentsBySeller(selectedSellerId);
+          setPayments(paymentData);
+          setFilteredPayments(paymentData);
+          setCurrentPage(1);
+        } catch (error) {
+          Toast.show({
+            type: 'error',
+            text1: 'Error',
+            text2: error.message || 'Failed to load payments',
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadPayments();
     }
-  };
+  }, [selectedSellerId, userRole]);
 
-  // Filter Payments based on Date Selection
-  const filterByDate = date => {
-    setSelectedDate(date);
-    if (date) {
-      const filtered = payments.filter(item => item.date === date);
-      setFilteredPayments(filtered);
-    } else {
-      setFilteredPayments(payments);
+  // Filter payments based on search and date
+  useEffect(() => {
+    let filtered = payments;
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (item) =>
+          item.Customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.Contact?.includes(searchQuery)
+      );
     }
-  };
-
-  // Search Payments
-  const handleSearch = query => {
-    setSearchQuery(query);
-    const filtered = payments.filter(
-      item =>
-        item.name.toLowerCase().includes(query.toLowerCase()) ||
-        item.phone.includes(query),
-    );
+    if (selectedDate) {
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      filtered = filtered.filter((item) => item.Payment_date.split(' ')[0] === dateStr);
+    }
     setFilteredPayments(filtered);
+    setCurrentPage(1);
+  }, [searchQuery, selectedDate, payments]);
+
+  // Update visible payments for pagination
+  const updateVisiblePayments = (filtered, page) => {
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filtered.slice(startIndex, endIndex);
   };
 
-    // render Pagination
-    const renderPagination = () => (
-      <View style={styles.paginationContainer}>
-        <TouchableOpacity
-          style={[styles.navButton, currentPage === 1 && styles.disabledButton]}
-          onPress={() => handlePageChange(1)}
-          disabled={currentPage === 1}
-        >
-          <Icon name="chevron-double-left" size={24} color={currentPage === 1 ? '#ccc' : '#fff'} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.navButton, currentPage === 1 && styles.disabledButton]}
-          onPress={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-        >
-          <Icon name="chevron-left" size={24} color={currentPage === 1 ? '#ccc' : '#fff'} />
-        </TouchableOpacity>
-  
-        <View style={styles.pageNumbers}>
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(page => 
-              page === 1 || 
-              page === totalPages || 
-              (page >= currentPage - 1 && page <= currentPage + 1)
-            )
-            .map(page => (
-              <TouchableOpacity
-                key={page}
-                style={[styles.pageButton, currentPage === page && styles.activePageButton]}
-                onPress={() => handlePageChange(page)}
-              >
-                <Text style={[styles.pageText, currentPage === page && styles.activePageText]}>
-                  {page}
-                </Text>
-              </TouchableOpacity>
-            ))}
-        </View>
-  
-        <TouchableOpacity
-          style={[styles.navButton, currentPage === totalPages && styles.disabledButton]}
-          onPress={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-        >
-          <Icon name="chevron-right" size={24} color={currentPage === totalPages ? '#ccc' : '#fff'} />
-        </TouchableOpacity>
-  
-        <TouchableOpacity
-          style={[styles.navButton, currentPage === totalPages && styles.disabledButton]}
-          onPress={() => handlePageChange(totalPages)}
-          disabled={currentPage === totalPages}
-        >
-          <Icon name="chevron-double-right" size={24} color={currentPage === totalPages ? '#ccc' : '#fff'} />
-        </TouchableOpacity>
-      </View>
-    );
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
 
-  
-  const renderPaymentItem = ({item}) => (
-    <View style={styles.tableRow}>
-      <Text style={styles.cell}>{item.saller}</Text>
-      <Text style={styles.cell}>{item.name}</Text>
-      <Text style={styles.cell}>{item.phone}</Text>
-      <Text style={[styles.cell, item.status === 'Paid' ? styles.paid : 
-                  item.status === 'Pending' ? styles.pending : styles.failed]}>
-        {item.status}
-      </Text>
-      <TouchableOpacity 
-        style={styles.viewButton} 
-        onPress={() => alert(`Payment Details:\nName: ${item.name}\nAmount: $${item.amount}\nStatus: ${item.status}`)}>
-        <Text style={styles.viewText}>View</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const handleDateChange = (event, date) => {
+    setShowPicker(false);
+    if (date) {
+      setSelectedDate(date);
+    } else {
+      setSelectedDate(null);
+    }
+  };
 
-    // Render table header
+  // Render table header
   const renderHeader = () => (
     <View style={styles.tableHeader}>
-      <Text style={styles.headerText}>saller</Text>
-      <Text style={styles.headerText}>Name</Text>
-      <Text style={styles.headerText}>Phone</Text>
+      <Text style={styles.headerText}>{userRole === 'admin' ? 'Seller' : 'Customer'}</Text>
+      <Text style={styles.headerText}>Contact</Text>
+      <Text style={styles.headerText}>Amount</Text>
       <Text style={styles.headerText}>Status</Text>
       <Text style={styles.headerText}>Action</Text>
     </View>
   );
 
+  // Render payment item
+  const renderPaymentItem = ({ item }) => (
+    <View style={styles.tableRow}>
+      <Text style={styles.cell}>
+        {userRole === 'admin' ? item.Seller_name : item.Customer_name}
+      </Text>
+      <Text style={styles.cell}>{item.Contact}</Text>
+      <Text style={styles.cell}>₹{parseFloat(item.Amount_collected).toFixed(2)}</Text>
+      <Text
+        style={[
+          styles.cell,
+          item.Payment_status === 'Paid'
+            ? styles.paid
+            : item.Payment_status === 'Pending'
+            ? styles.pending
+            : styles.failed,
+        ]}
+      >
+        {item.Payment_status}
+      </Text>
+      <TouchableOpacity
+        style={styles.viewButton}
+        onPress={() =>
+          Alert.alert(
+            'Payment Details',
+            `Name: ${userRole === 'admin' ? item.Seller_name : item.Customer_name}\n` +
+              `Contact: ${item.Contact}\n` +
+              `Amount: ₹${parseFloat(item.Amount_collected).toFixed(2)}\n` +
+              `Status: ${item.Payment_status}\n` +
+              `Date: ${item.Payment_date}\n` +
+              `Method: ${item.Method || 'N/A'}`
+          )
+        }
+      >
+        <Text style={styles.viewText}>View</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
+  // Render pagination
+  const renderPagination = () => (
+    <View style={styles.paginationContainer}>
+      <TouchableOpacity
+        style={[styles.navButton, currentPage === 1 && styles.disabledButton]}
+        onPress={() => handlePageChange(1)}
+        disabled={currentPage === 1}
+      >
+        <Icon name="chevron-double-left" size={24} color={currentPage === 1 ? '#ccc' : '#fff'} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.navButton, currentPage === 1 && styles.disabledButton]}
+        onPress={() => handlePageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+      >
+        <Icon name="chevron-left" size={24} color={currentPage === 1 ? '#ccc' : '#fff'} />
+      </TouchableOpacity>
+      <View style={styles.pageNumbers}>
+        {Array.from({ length: totalPages }, (_, i) => i + 1)
+          .filter(
+            (page) =>
+              page === 1 ||
+              page === totalPages ||
+              (page >= currentPage - 1 && page <= currentPage + 1)
+          )
+          .map((page) => (
+            <TouchableOpacity
+              key={page}
+              style={[styles.pageButton, currentPage === page && styles.activePageButton]}
+              onPress={() => handlePageChange(page)}
+            >
+              <Text style={[styles.pageText, currentPage === page && styles.activePageText]}>
+                {page}
+              </Text>
+            </TouchableOpacity>
+          ))}
+      </View>
+      <TouchableOpacity
+        style={[styles.navButton, currentPage === totalPages && styles.disabledButton]}
+        onPress={() => handlePageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+      >
+        <Icon name="chevron-right" size={24} color={currentPage === totalPages ? '#ccc' : '#fff'} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.navButton, currentPage === totalPages && styles.disabledButton]}
+        onPress={() => handlePageChange(totalPages)}
+        disabled={currentPage === totalPages}
+      >
+        <Icon name="chevron-double-right" size={24} color={currentPage === totalPages ? '#ccc' : '#fff'} />
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Payments</Text>
+      <Text style={styles.title}>Payment Details</Text>
 
-      {/* Date Picker */}
-      <TouchableOpacity onPress={() => setShowPicker(true)} style={styles.datePickerButton}>
-        <Text style={styles.datePickerText}>Select Date: {selectedDate.toISOString().split('T')[0]}</Text>
-      </TouchableOpacity>
-      {showPicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display="default"
-          onChange={(event, date) => {
-            setShowPicker(false);
-            if (date) filterByDate(date);
-          }}
-        />
+      {/* Role-based UI */}
+      {loading ? (
+        <ActivityIndicator size="large" color="#2A5866" style={styles.loader} />
+      ) : (
+        <>
+          {userRole === 'admin' && (
+            <View style={styles.sellerPickerContainer}>
+              <Text style={styles.label}>Select Seller</Text>
+              <Picker
+                selectedValue={selectedSellerId}
+                onValueChange={(value) => setSelectedSellerId(value)}
+                style={styles.picker}
+              >
+                {sellers.map((seller) => (
+                  <Picker.Item
+                    key={seller.Seller_id}
+                    label={seller.Name}
+                    value={seller.Seller_id}
+                  />
+                ))}
+              </Picker>
+            </View>
+          )}
+
+          {/* Date Picker */}
+          <TouchableOpacity
+            onPress={() => setShowPicker(true)}
+            style={styles.datePickerButton}
+          >
+            <Text style={styles.datePickerText}>
+              {selectedDate
+                ? `Date: ${selectedDate.toISOString().split('T')[0]}`
+                : 'Select Date'}
+            </Text>
+          </TouchableOpacity>
+          {showPicker && (
+            <DateTimePicker
+              value={selectedDate || new Date()}
+              mode="date"
+              display="default"
+              onChange={handleDateChange}
+            />
+          )}
+
+          {/* Search Input */}
+          <View style={styles.searchContainer}>
+            <Icon name="magnify" size={20} color="#666" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by Name or Contact"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+
+          {/* Payment Table */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+            <View style={styles.tableContainer}>
+              {renderHeader()}
+              <FlatList
+                data={updateVisiblePayments(filteredPayments, currentPage)}
+                keyExtractor={(item) => item.S_payment_id.toString()}
+                renderItem={renderPaymentItem}
+                ListEmptyComponent={
+                  <Text style={styles.emptyText}>No payments found</Text>
+                }
+              />
+            </View>
+          </ScrollView>
+
+          {filteredPayments.length > 0 && renderPagination()}
+        </>
       )}
-
-      {/* Search Input */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by Name or Phone"
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
-      </View>
-
-      {/* Payment List */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={true}>
-      <View style={styles.tableContainer}>
-        {renderHeader()}
-        <FlatList
-          data={visibleCustomers}
-          keyExtractor={item => item.id}
-          renderItem={renderPaymentItem}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No payments found</Text>
-          }
-        />
-      </View>
-      </ScrollView>
-        {filteredCustomers.length > 0 && renderPagination()}
+      <Toast />
     </View>
   );
 };
@@ -411,43 +330,83 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 20,
     textAlign: 'center',
+    color: '#1A2A44',
+  },
+  sellerPickerContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A2A44',
+    marginBottom: 8,
+  },
+  picker: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+  },
+  datePickerButton: {
+    backgroundColor: '#2A5866',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  datePickerText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
   searchContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 20,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  searchIcon: {
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 8,
-    borderRadius: 5,
-  },
- tableHeader: {
-    flexDirection: 'row',
-    gap: 25,
-    backgroundColor: '#2A5866',
     paddingVertical: 10,
+    fontSize: 16,
+    color: '#1A2A44',
+  },
+  tableContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    elevation: 2,
+    marginBottom: 20,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#2A5866',
+    paddingVertical: 12,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
   },
   headerText: {
+    flex: 1,
     fontSize: 14,
     fontWeight: 'bold',
     color: '#fff',
-    flex: 1,
     textAlign: 'center',
+    paddingHorizontal: 10,
   },
   tableRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     backgroundColor: '#fff',
-    padding: 15,
-    gap: 10,
+    paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
@@ -455,37 +414,33 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: 14,
+    color: '#1A2A44',
+    paddingHorizontal: 10,
   },
   paid: {
-    color: 'green',
+    color: '#34C759',
     fontWeight: 'bold',
   },
   pending: {
-    color: 'orange',
+    color: '#D69E2E',
     fontWeight: 'bold',
   },
   failed: {
-    color: 'red',
+    color: '#EF4444',
     fontWeight: 'bold',
   },
   viewButton: {
+    flex: 1,
     backgroundColor: '#2A5866',
-    padding: 5,
+    paddingVertical: 8,
     borderRadius: 5,
-    minWidth: 60,
+    marginHorizontal: 10,
+    alignItems: 'center',
   },
   viewText: {
     color: '#fff',
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-
-  tableContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    elevation: 2,
-    flex: 1,
-    marginTop: 10,
+    fontWeight: '600',
+    fontSize: 14,
   },
   emptyText: {
     textAlign: 'center',
@@ -493,34 +448,14 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
   },
-
-  datePickerButton: {
-    backgroundColor: '#2A5866',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  datePickerText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-
-
-
   paginationContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
     backgroundColor: '#f9f9f9',
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
-  },
-  disabledButton: {
-    backgroundColor: '#ccc',
   },
   navButton: {
     backgroundColor: '#2A5866',
@@ -531,6 +466,9 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
   },
   pageNumbers: {
     flexDirection: 'row',
@@ -551,13 +489,17 @@ const styles = StyleSheet.create({
   activePageButton: {
     backgroundColor: '#2A5866',
   },
-  activePageText: {
-    color: '#fff',
-  },
   pageText: {
     fontSize: 14,
     color: '#2A5866',
     fontWeight: '600',
+  },
+  activePageText: {
+    color: '#fff',
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
   },
 });
 
