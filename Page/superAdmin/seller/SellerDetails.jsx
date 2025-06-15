@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import { API_CONFIG } from '../../../database-connect/Apichange';
+import deleteSeller from '../../../database-connect/admin/seller/deleteSeller';
 
 const SellerDetails = () => {
   const navigation = useNavigation();
@@ -13,21 +14,21 @@ const SellerDetails = () => {
   const [filteredSellers, setFilteredSellers] = useState([]);
   const [visibleSellers, setVisibleSellers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
   const itemsPerPage = 7;
 
   useEffect(() => {
     const fetchSellers = async () => {
+      setIsLoading(true);
       try {
         const response = await axios.get(API_CONFIG.fetchSeller, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          timeout: 5000,
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 10000, // Increased timeout to 10 seconds
         });
         console.log('Fetch Sellers Response:', response.data);
-        if (Array.isArray(response.data)) {
-          const formattedSellers = response.data.map(seller => ({
-            id: seller.Seller_id?.toString() || '', // Ensure id is a string, handle undefined
+        if (response.data.status === 'success' && Array.isArray(response.data.data)) {
+          const formattedSellers = response.data.data.map(seller => ({
+            id: seller.Seller_id?.toString() || '',
             username: seller.Name || 'Unknown',
             phone: seller.Contact || '',
             vehicleNo: seller.Vehicle_no || '',
@@ -40,7 +41,9 @@ const SellerDetails = () => {
         }
       } catch (error) {
         console.error('Fetch Sellers Error:', error.message);
-        Alert.alert('Error', 'Failed to connect to server');
+        Alert.alert('Error', error.response?.data?.message || 'Failed to connect to server');
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchSellers();
@@ -69,33 +72,28 @@ const SellerDetails = () => {
       return;
     }
     Alert.alert(
-      'Delete Seller',
-      'Are you sure you want to delete this seller?',
+      'Deactivate Seller',
+      'Are you sure you want to deactivate this seller?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Deactivate',
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await axios.delete('http://192.168.194.171/milk_dist_system/seller/seller.php', {
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                data: { Seller_id: id },
-              });
-              if (response.data.status === 'success') {
+              const response = await deleteSeller(id);
+              if (response.status === 'success') {
                 const updatedSellers = sellers.filter((seller) => seller.id !== id);
                 setSellers(updatedSellers);
                 setFilteredSellers(updatedSellers);
                 updateVisibleSellers(updatedSellers, currentPage);
-                Alert.alert('Success', 'Seller deleted successfully');
+                Alert.alert('Success', 'Seller deactivated successfully');
               } else {
-                Alert.alert('Error', response.data.message || 'Failed to delete seller');
+                Alert.alert('Error', response.message || 'Failed to deactivate seller');
               }
             } catch (error) {
-              console.error('Delete Seller Error:', error.message);
-              Alert.alert('Error', 'Failed to connect to server');
+              console.error('Deactivate Seller Error:', error.message);
+              Alert.alert('Error', error.message || 'Failed to deactivate seller');
             }
           },
         },
@@ -150,10 +148,10 @@ const SellerDetails = () => {
       <Text style={[styles.cell, { width: 100 }]} numberOfLines={1} ellipsizeMode="tail">
         {item.phone}
       </Text>
-      <Text style={[styles.cell, { width: 100 }]} numberOfLines={1} ellipsizeMode="tail">
+      <Text style={[styles.cell, { width: 110 }]} numberOfLines={1} ellipsizeMode="tail">
         {item.vehicleNo}
       </Text>
-      <View style={[styles.cell, styles.actionCell, { width: 80 }]}>
+      <View style={[styles.cell, styles.actionCell, { width: 100 }]}>
         <TouchableOpacity
           onPress={(e) => {
             e.stopPropagation();
@@ -222,7 +220,7 @@ const SellerDetails = () => {
   );
 
   return (
-    <LinearGradient colors={['#E6F0FA', '#FFFFFF']} style={styles.container}>
+    <LinearGradient colors={['#f4f7fa', '#e5e7eb']} style={styles.container}>
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Seller Details</Text>
       </View>
@@ -239,12 +237,16 @@ const SellerDetails = () => {
         <ScrollView horizontal={true} showsHorizontalScrollIndicator={true}>
           <View>
             {renderHeader()}
-            <FlatList
-              data={visibleSellers}
-              keyExtractor={(item) => item.id}
-              renderItem={renderSellerItem}
-              ListEmptyComponent={<Text style={styles.emptyText}>No sellers found</Text>}
-            />
+            {isLoading ? (
+              <ActivityIndicator size="large" color="#2A5866" style={styles.loader} />
+            ) : (
+              <FlatList
+                data={visibleSellers}
+                keyExtractor={(item) => item.id}
+                renderItem={renderSellerItem}
+                ListEmptyComponent={<Text style={styles.emptyText}>No sellers found</Text>}
+              />
+            )}
           </View>
         </ScrollView>
         {filteredSellers.length > 0 && renderPagination()}
@@ -271,20 +273,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 12,
     marginBottom: 20,
-    elevation: 3,
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
   searchInput: {
     flex: 1,
     height: 50,
     fontSize: 16,
-    color: '#333',
+    color: '#2A5866',
+    fontWeight: '500',
   },
   searchIcon: {
     marginRight: 10,
@@ -292,41 +295,42 @@ const styles = StyleSheet.create({
   tableContainer: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    elevation: 3,
+    elevation: 4,
     flex: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#2A5866',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
-    minWidth: 400,
+    minWidth: 430,
   },
   headerCell: {
     color: '#fff',
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
     paddingHorizontal: 8,
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 15,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
     alignItems: 'center',
-    minWidth: 400,
+    minWidth: 430,
   },
   cell: {
     fontSize: 14,
-    color: '#333',
+    color: '#2A5866',
     textAlign: 'center',
     paddingHorizontal: 8,
+    fontWeight: '500',
   },
   actionCell: {
     flexDirection: 'row',
@@ -335,18 +339,22 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     marginLeft: 12,
+    backgroundColor: '#ffe6e6',
+    padding: 6,
+    borderRadius: 6,
   },
   emptyText: {
     textAlign: 'center',
     padding: 20,
     color: '#666',
     fontSize: 16,
+    fontWeight: '500',
   },
   paginationContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 15,
+    padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#eee',
     backgroundColor: '#f9f9f9',
@@ -392,6 +400,9 @@ const styles = StyleSheet.create({
   },
   activePageText: {
     color: '#fff',
+  },
+  loader: {
+    marginVertical: 20,
   },
 });
 

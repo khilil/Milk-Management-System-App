@@ -1,25 +1,75 @@
-import React, { useLayoutEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+import React, { useLayoutEffect, useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, FlatList, Animated } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import styles from '../../css/styles';
-import { useNavigation } from '@react-navigation/native'; 
+import styles from '../../css/styles'; // Ensure this path matches your project structure
+import { useNavigation } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { fetchDashboardData } from '../../database-connect/admin/deashbord/deashbord';
 
 const features = [
-  { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Coustomer'  },
+  { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Coustomer' },
   { id: '2', name: 'Add Seller', icon: 'account-group', color: '#e67e22', screen: 'AddSeller' },
-  { id: '3', name: 'Add Address', icon: 'earth', color: '#34495e', screen:'Address' },
-  { id: '7', name: 'Milk Assiging', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
-  { id: '4', name: 'Customer Detail', icon: 'cup-water', color: '#2ecc71' ,screen: 'CustomerList'},
+  { id: '3', name: 'Add Address', icon: 'earth', color: '#34495e', screen: 'Address' },
+  { id: '7', name: 'Milk Assigning', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
+  { id: '4', name: 'Customer Detail', icon: 'cup-water', color: '#2ecc71', screen: 'CustomerList' },
   { id: '8', name: 'Seller Details', icon: 'storefront', color: '#f1c40f', screen: 'seller details' },
   { id: '6', name: 'Milk Delay Report', icon: 'chart-bar', color: '#1abc9c', screen: 'MonthlyReports' },
-  { id: '5', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments'},
-  // { id: '9', name: 'Settings', icon: 'cog', color: '#7f8c8d' },
+  { id: '5', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments' },
 ];
-// HomeScreen.js - Enhanced with more details
+
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const [dashboardData, setDashboardData] = useState({
+    totalDistributed: 0,
+    totalAssigned: 0,
+  });
+  const [greeting, setGreeting] = useState('Good Morning, Admin!');
+  const fadeAnim = useState(new Animated.Value(0))[0];
+
+  // Fade-in animation
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim]);
+
+  // Dynamic greeting based on time of day
+  useEffect(() => {
+    const updateGreeting = () => {
+      const hour = new Date().getHours();
+      if (hour < 12) {
+        setGreeting('Good Morning, Admin!');
+      } else if (hour < 17) {
+        setGreeting('Good Afternoon, Admin!');
+      } else {
+        setGreeting('Good Evening, Admin!');
+      }
+    };
+    updateGreeting();
+    const interval = setInterval(updateGreeting, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch dashboard data
+  useEffect(() => {
+    const getDashboardData = async () => {
+      try {
+        const data = await fetchDashboardData();
+        if (data.status === 'success') {
+          setDashboardData({
+            totalDistributed: data.data.total_distributed,
+            totalAssigned: data.data.total_assigned,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      }
+    };
+    getDashboardData();
+  }, []);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -34,85 +84,82 @@ export default function HomeScreen() {
       title: 'Admin Dashboard',
       headerStyle: {
         backgroundColor: '#2A5866',
+        elevation: 0,
+        shadowOpacity: 0,
       },
       headerTintColor: '#fff',
+      headerTitleStyle: {
+        fontWeight: '600',
+        fontSize: 20,
+      },
     });
   }, [navigation]);
 
-
-    return (
-      <LinearGradient
-        colors={['#f8f9fa', '#e9ecef']}
-        style={styles.container}
-      >
+  return (
+    <LinearGradient colors={['#f4f7fa', '#e5e7eb']} style={styles.container}>
+      <Animated.View style={{ opacity: fadeAnim }}>
         {/* Header Section */}
         <View style={styles.headerContainer}>
-          <View style={styles.userInfo}>
-            <Text style={styles.greeting}>Good Morning, Admin..!</Text>
-            <Text style={styles.stats}>Today's Distribution: 1500 L</Text>
-          </View>
-          <TouchableOpacity style={styles.profileButton}>
-            <Icon name="account" size={28} color="#2c3e50" />
-          </TouchableOpacity>
+          <LinearGradient
+            colors={['#ffffff', '#f8fafc']}
+            style={styles.headerCard}
+          >
+            <View style={styles.headerContent}>
+              <View style={styles.headerLeft}>
+                <Text style={styles.greeting}>{greeting}</Text>
+                <View style={styles.statsContainer}>
+                  <View style={styles.statBox}>
+                    <Icon name="cup-water" size={24} color="#3498db" />
+                    <Text style={styles.statValue}>{dashboardData.totalDistributed} L</Text>
+                    <Text style={styles.statLabel}>Distributed Today</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Icon name="nutrition" size={24} color="#e74c3c" />
+                    <Text style={styles.statValue}>{dashboardData.totalAssigned} L</Text>
+                    <Text style={styles.statLabel}>Assigned Today</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </LinearGradient>
         </View>
 
         {/* Main Features Grid */}
         <FlatList
-          ListHeaderComponent={
-            <Text style={styles.sectionTitle}>Management Tools</Text>
-          }
+          ListHeaderComponent={<Text style={styles.sectionTitle}>Management Tools</Text>}
           data={features}
           keyExtractor={(item) => item.id}
           numColumns={3}
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
-            <TouchableOpacity 
-            style={styles.touchableBox}
-            activeOpacity={0.9}
-            onPress={() => {
-              if (item.screen) {
-                navigation.navigate(item.screen); // Navigate to the specified screen
-              }
-            }}
-          >
+            <TouchableOpacity
+              style={styles.touchableBox}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (item.screen) {
+                  navigation.navigate(item.screen);
+                }
+              }}
+            >
               <LinearGradient
-                colors={[item.color, `${item.color}dd`]}
+                colors={[item.color, `${item.color}cc`]}
                 style={styles.box}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                {/* Badge for notifications */}
                 {item.id === '7' && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>3</Text>
                   </View>
                 )}
-                <Icon
-                  name={item.icon}
-                  size={32}
-                  color="#fff"
-                  style={styles.icon}
-                />
+                <Icon name={item.icon} size={32} color="#fff" style={styles.icon} />
                 <Text style={styles.boxText}>{item.name}</Text>
-
-                {/* Subtle Pattern Overlay */}
                 <View style={styles.patternOverlay} />
               </LinearGradient>
             </TouchableOpacity>
           )}
         />
-
-        {/* Footer Quick Actions */}
-        <View style={styles.footer}>
-          <TouchableOpacity style={styles.footerButton}>
-            <Icon name="clock" size={20} color="#2c3e50" />
-            <Text style={styles.footerText}>Recent</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.footerButton}>
-            <Icon name="alert" size={20} color="#2c3e50" />
-            <Text style={styles.footerText}>Alerts</Text>
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-    );
-  }
+      </Animated.View>
+    </LinearGradient>
+  );
+}

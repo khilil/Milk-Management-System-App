@@ -1,238 +1,131 @@
-// Enhanced Styles.js
-import { StyleSheet, Dimensions } from 'react-native';
-
-const { width, height } = Dimensions.get('window');
-const COLORS = {
-  primary: '#2A5866',    // Deep teal for professional look
-  secondary: '#6C9A8B',  // Muted green for calmness
-  accent: '#FF6B6B',     // Coral for highlights
-  background: '#F8F9FB', // Light background
-  textDark: '#2C3E50',   // Dark text
-  textLight: '#FFFFFF',   // White text
-  status: '#FFD93D',     // Yellow for status indicators
-};
+import { StyleSheet } from 'react-native';
 
 export default StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f4f7fa',
   },
   headerContainer: {
+    paddingTop: 0,
+    backgroundColor: 'transparent',
+  },
+  headerCard: {
+    padding: 24,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    marginBottom: 12,
+    borderRadius: 20,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#FFFFFF',
-    margin: 15,
-    borderRadius: 20,
-    shadowColor: '#E0E5EC',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
-    elevation: 5,
   },
-  userInfo: {
+  headerLeft: {
     flex: 1,
-    marginRight: 10,
   },
   greeting: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 5,
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#2A5866',
+    marginBottom: 16,
+    fontFamily: 'System',
+    letterSpacing: 0.3,
   },
-  stats: {
-    fontSize: 14,
-    color: '#7f8c8d',
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statBox: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    width: '48%',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#2A5866',
+    marginVertical: 10,
+    letterSpacing: 0.2,
+  },
+  statLabel: {
+    fontSize: 15,
     fontWeight: '500',
-  },
-  profileButton: {
-    padding: 10,
-    backgroundColor: '#EFF2F7',
-    borderColor: COLORS.primary,
-    borderRadius: 50,
-    borderWidth: 2,
+    color: '#4b5563',
+    textAlign: 'center',
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
-    color: COLORS.primary,
-    marginLeft: 15,
-    marginBottom: 10,
+    color: '#2A5866',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    letterSpacing: 0.3,
   },
-//   ____________________________________________________
-// Center
-//   ____________________________________________________
+  listContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 24,
+  },
   touchableBox: {
     flex: 1,
-    alignItems:'center',
-    justifyContent:'center',
-    margin: 5,
-
+    margin: 10,
+    maxWidth: '31%',
   },
   box: {
-    width: (width - 60) / 3,
-    height: 140,
     borderRadius: 20,
-    justifyContent: 'center',
+    padding: 20,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 130,
+    elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
+    // shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
     overflow: 'hidden',
-    backgroundColor: COLORS.primary,
-    colors: [`${COLORS.primary}CC`, `${COLORS.secondary}CC`],
-  },
-  boxText: {
-    fontSize: 14,
-    color: '#fff',
-    textAlign: 'center',
-    marginTop: 8,
-    fontWeight: '600',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-    paddingHorizontal: 5,
-  },
-  icon: {
-    marginBottom: 5,
   },
   badge: {
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: COLORS.accent,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    backgroundColor: '#e53e3e',
+    borderRadius: 14,
+    width: 26,
+    height: 26,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1,
   },
   badgeText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  icon: {
+    marginBottom: 10,
+  },
+  boxText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
+    letterSpacing: 0.3,
   },
   patternOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    transform: [{ rotate: '45deg' }],
-    width: '200%',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 15,
-    borderTopWidth: 1,
-    backgroundColor: '#FFFFFF',
-    borderTopColor: '#E0E5EC',
-  },
-  footerButton: {
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
-    flexDirection: 'row',
-    gap: 5,
-  },
-  footerText: {
-    color: '#2c3e50',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  gradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.1,
-    backgroundColor: 'transparent',
-    backgroundImage: 'linear-gradient(135deg, #FFFFFF 25%, transparent 25%)',
-  },
-  formContainer: {
-    padding: 20,
-  },
-  formTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2A5866',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: '#2C3E50',
-  },
-  dateText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#2C3E50',
-  },
-  submitButton: {
-    marginTop: 20,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  gradientButton: {
-    padding: 15,
-    alignItems: 'center',
-  },
-  submitButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-
-
-  // coustomer add 
-  listContainer: {
-    padding: 20,
-  },
-  customerItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  customerInfo: {
-    flex: 1,
-  },
-  customerName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2A5866',
-  },
-  customerEmail: {
-    fontSize: 14,
-    color: '#7F8FA4',
-    marginTop: 5,
-  },
-  customerPhone: {
-    fontSize: 14,
-    color: '#7F8FA4',
-    marginTop: 5,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
 });

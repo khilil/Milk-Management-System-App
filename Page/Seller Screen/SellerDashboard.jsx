@@ -1,27 +1,74 @@
-import React, { useLayoutEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+import React, { useLayoutEffect, useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, FlatList, Animated } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import styles from '../../css/styles';
-import { useNavigation } from '@react-navigation/native'; 
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
+import { fetchSellerDashboardData } from '../../database-connect/seller-screen/deashbord/fetchSellerDashboardData';
 
 const features = [
-  { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Coustomer'  },
-  // { id: '2', name: 'Add Seller', icon: 'account-group', color: '#e67e22', screen: 'AddSeller' },
-  // <AntDesign name="enviromento" size={20} color="#FFFFFF" />
-  { id: '2', name: 'Select Area', icon: 'map', color: '#34495e' ,screen: 'addressSelect'},//! change kr va nu ch 
-  { id: '3', name: 'Coustomer Milk Data', icon: 'cup-water', color: '#2ecc71' ,screen: 'CoustomerMilkAssingDataList'},//! change kr va nu ch 
-  { id: '4', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments'},
-  { id: '5', name: 'Gather Payment', icon: 'chart-bar', color: '#1abc9c', screen: 'gather payment'},
-  { id: '5', name: 'Milk Assiging', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
-  // { id: '7', name: 'Seller Details', icon: 'bell', color: '#f1c40f', screen: 'seller details' },
-  // { id: '8', name: 'Customer Feedback', icon: 'message-text', color: '#34495e' },
-  { id: '6', name: 'Milk Selling', icon: 'beer-outline', color: '#7f8c8d', screen: "Milk selling" },
+  { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Coustomer' },
+  { id: '2', name: 'Select Area', icon: 'map', color: '#34495e', screen: 'addressSelect' },
+  { id: '3', name: 'Coustomer Milk Data', icon: 'cup-water', color: '#2ecc71', screen: 'CoustomerMilkAssingDataList' },
+  { id: '4', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments' },
+  { id: '5', name: 'Gather Payment', icon: 'chart-bar', color: '#1abc9c', screen: 'gather payment' },
+  { id: '6', name: 'Milk Assiging', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
+  { id: '7', name: 'Milk Selling', icon: 'beer-outline', color: '#7f8c8d', screen: 'Milk selling' },
 ];
-// HomeScreen.js - Enhanced with more details
+
 export default function SellerDashboard() {
   const navigation = useNavigation();
+  const [dashboardData, setDashboardData] = useState({
+    seller_name: 'Seller',
+    total_assigned: 0,
+    delivery_locations: [],
+  });
+  const [greeting, setGreeting] = useState('Good Morning, Seller!');
+  const fadeAnim = useState(new Animated.Value(0))[0];
+
+  // Fade-in animation
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim]);
+
+  // Dynamic greeting
+  useEffect(() => {
+    const updateGreeting = () => {
+      const hour = new Date().getHours();
+      if (hour < 12) {
+        setGreeting(`Good Morning, ${dashboardData.seller_name}!`);
+      } else if (hour < 17) {
+        setGreeting(`Good Afternoon, ${dashboardData.seller_name}!`);
+      } else {
+        setGreeting(`Good Evening, ${dashboardData.seller_name}!`);
+      }
+    };
+    updateGreeting();
+    const interval = setInterval(updateGreeting, 60000);
+    return () => clearInterval(interval);
+  }, [dashboardData.seller_name]);
+
+  // Fetch dashboard data
+  useEffect(() => {
+    const getDashboardData = async () => {
+      try {
+        const data = await fetchSellerDashboardData();
+        setDashboardData({
+          seller_name: data.seller_name || 'Seller',
+          total_assigned: data.total_assigned || 0,
+          delivery_locations: data.delivery_locations || [],
+        });
+      } catch (error) {
+        console.error('Error fetching seller dashboard data:', error.message);
+      }
+    };
+    getDashboardData();
+  }, []);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -36,85 +83,91 @@ export default function SellerDashboard() {
       title: 'Seller Dashboard',
       headerStyle: {
         backgroundColor: '#2A5866',
+        elevation: 0,
+        shadowOpacity: 0,
       },
       headerTintColor: '#fff',
+      headerTitleStyle: {
+        fontWeight: '600',
+        fontSize: 20,
+      },
     });
   }, [navigation]);
 
-
-    return (
-      <LinearGradient
-        colors={['#f8f9fa', '#e9ecef']}
-        style={styles.container}
-      >
+  return (
+    <LinearGradient colors={['#f4f7fa', '#e5e7eb']} style={styles.container}>
+      <Animated.View style={{ opacity: fadeAnim }}>
         {/* Header Section */}
         <View style={styles.headerContainer}>
-          <View style={styles.userInfo}>
-            <Text style={styles.greeting}>Good Morning, Seller!</Text>
-            <Text style={styles.stats}>Today's Distribution: 1500 L</Text>
-          </View>
-          <TouchableOpacity style={styles.profileButton}>
-            <Icon name="account" size={28} color="#2c3e50" />
-          </TouchableOpacity>
+          <LinearGradient
+            colors={['#ffffff', '#f8fafc']}
+            style={styles.headerCard}
+          >
+            <View style={styles.headerContent}>
+              <View style={styles.headerLeft}>
+                <Text style={styles.greeting}>{greeting}</Text>
+                <View style={styles.statsContainer}>
+                  <View style={styles.statBox}>
+                    <Icon name="nutrition" size={24} color="#e74c3c" />
+                    <Text style={styles.statValue}>{dashboardData.total_assigned} L</Text>
+                    <Text style={styles.statLabel}>Assigned Today</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Icon name="map-marker" size={24} color="#34495e" />
+                    <Text style={styles.statValue}>{dashboardData.delivery_locations.length}</Text>
+                    <Text style={styles.statLabel}>Delivery Locations</Text>
+                  </View>
+                </View>
+                {dashboardData.delivery_locations.length > 0 && (
+                  <View style={styles.locationsContainer}>
+                    <Text style={styles.locationsTitle}>Today’s Delivery Locations:</Text>
+                    {dashboardData.delivery_locations.slice(0, 2).map((location, index) => (
+                      <Text key={index} style={styles.locationText} numberOfLines={1}>
+                        • {location}
+                      </Text>
+                    ))}
+                    {dashboardData.delivery_locations.length > 2 && (
+                      <Text style={styles.locationText}>+{dashboardData.delivery_locations.length - 2} more</Text>
+                    )}
+                  </View>
+                )}
+              </View>
+            </View>
+          </LinearGradient>
         </View>
 
         {/* Main Features Grid */}
         <FlatList
-          ListHeaderComponent={
-            <Text style={styles.sectionTitle}>Management Tools</Text>
-          }
+          ListHeaderComponent={<Text style={styles.sectionTitle}>Management Tools</Text>}
           data={features}
           keyExtractor={(item) => item.id}
           numColumns={3}
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
-            <TouchableOpacity 
-            style={styles.touchableBox}
-            activeOpacity={0.9}
-            onPress={() => {
-              if (item.screen) {
-                navigation.navigate(item.screen); // Navigate to the specified screen
-              }
-            }}
-          >
+            <TouchableOpacity
+              style={styles.touchableBox}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (item.screen) {
+                  navigation.navigate(item.screen);
+                }
+              }}
+            >
               <LinearGradient
-                colors={[item.color, `${item.color}dd`]}
+                colors={[item.color, `${item.color}cc`]}
                 style={styles.box}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                {/* Badge for notifications */}
-                {item.id === '7' && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>3</Text>
-                  </View>
-                )}
-                <Icon
-                  name={item.icon}
-                  size={32}
-                  color="#fff"
-                  style={styles.icon}
-                />
+                <Icon name={item.icon} size={32} color="#fff" style={styles.icon} />
                 <Text style={styles.boxText}>{item.name}</Text>
-
-                {/* Subtle Pattern Overlay */}
                 <View style={styles.patternOverlay} />
               </LinearGradient>
             </TouchableOpacity>
           )}
         />
 
-        {/* Footer Quick Actions */}
-        <View style={styles.footer}>
-          <TouchableOpacity style={styles.footerButton}>
-            <Icon name="clock" size={20} color="#2c3e50" />
-            <Text style={styles.footerText}>Recent</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.footerButton}>
-            <Icon name="alert" size={20} color="#2c3e50" />
-            <Text style={styles.footerText}>Alerts</Text>
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-    );
-  }
+      </Animated.View>
+    </LinearGradient>
+  );
+}

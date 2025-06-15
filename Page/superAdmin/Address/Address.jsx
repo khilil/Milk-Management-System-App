@@ -4,8 +4,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { StyleSheet } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import addAddress from '../../../database-connect/admin/add Address/addAddress';
-import fetchAddresh from '../../../database-connect/admin/add Address/fetchAddresh';
-// import deleteAddress from '../../../database-connect/admin/add Address/deleteAddress';
+import fetchAddresses from '../../../database-connect/admin/add Address/fetchAddresh';
+import deleteAddress from '../../../database-connect/admin/add Address/deleteAddress';
 
 const AddressScreen = () => {
   const [formData, setFormData] = useState({ address: '' });
@@ -15,8 +15,11 @@ const AddressScreen = () => {
 
   useEffect(() => {
     setIsLoading(true);
-    fetchAddresh(setAddresses, setAddresses, (data) => setAddresses(data))
-      .catch(error => Alert.alert('Error', error.message))
+    fetchAddresses(setAddresses, setAddresses, (data) => setAddresses(data))
+      .catch(error => {
+        console.error('Fetch error:', error.message);
+        Alert.alert('Error', error.message);
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -49,11 +52,12 @@ const AddressScreen = () => {
         if (response.status === 'success') {
           Alert.alert('Success', 'Address added successfully');
           setFormData({ address: '' });
-          await fetchAddresh(setAddresses, setAddresses, (data) => setAddresses(data));
+          await fetchAddresses(setAddresses, setAddresses, (data) => setAddresses(data));
         } else {
           Alert.alert('Error', response.message || 'Failed to add address');
         }
       } catch (error) {
+        console.error('Submit error:', error.message);
         Alert.alert('Error', error.message || 'Failed to connect to server.');
       } finally {
         setIsSubmitting(false);
@@ -76,6 +80,7 @@ const AddressScreen = () => {
   };
 
   const handleDelete = (id) => {
+    console.log('Attempting to delete address with ID:', id);
     Alert.alert(
       'Delete Address',
       'Are you sure you want to delete this address?',
@@ -85,10 +90,17 @@ const AddressScreen = () => {
           text: 'Delete',
           onPress: async () => {
             try {
-              await deleteAddress(id, setAddresses, setAddresses, (data) => setAddresses(data));
-              Alert.alert('Success', 'Address deleted successfully');
+              const response = await deleteAddress(id);
+              console.log('Delete response:', response);
+              if (response.status === 'success') {
+                Alert.alert('Success', 'Address deleted successfully');
+                await fetchAddresses(setAddresses, setAddresses, (data) => setAddresses(data));
+              } else {
+                Alert.alert('Error', response.message || 'Failed to delete address');
+              }
             } catch (error) {
-              Alert.alert('Error', error.message);
+              console.error('Delete error:', error.message);
+              Alert.alert('Error', error.message || 'Failed to delete address');
             }
           },
         },
@@ -112,11 +124,11 @@ const AddressScreen = () => {
       <Text style={[styles.cell, { flex: 3 }]}>{item.address}</Text>
       <View style={[styles.cell, { flex: 1, justifyContent: 'center', alignItems: 'center' }]}>
         <TouchableOpacity
-          onPress={() => handleDelete(item.id)}
+          onPress={() => handleDelete(item.id)} // Use item.id
           style={styles.deleteButton}
           activeOpacity={0.6}
         >
-          <Icon name="delete" size={24} color="#d4082fdb"/>
+          <Icon name="delete" size={24} color="#d4082fdb" />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -172,7 +184,7 @@ const AddressScreen = () => {
               {renderHeader()}
               <FlatList
                 data={addresses}
-                keyExtractor={item => item.id.toString()}
+                keyExtractor={item => item.id.toString()} // Use item.id
                 renderItem={renderAddressItem}
                 ListEmptyComponent={<Text style={styles.emptyText}>No addresses found</Text>}
                 scrollEnabled={false}
@@ -297,8 +309,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   deleteButton: {
-    // backgroundColor: '#FF4444',
-    // Color: '#d4082fdb',
     padding: 8,
     borderRadius: 6,
   },

@@ -3,7 +3,7 @@ import { API_CONFIG } from '../../Apichange';
 
 
 
-const API_URL =   API_CONFIG.BASE_URL;
+const API_URL =   API_CONFIG.addAddress;
 export const fetchAddresses = async () => {
   try {
     const response = await axios.get(`${API_URL}?path=addresses`, {

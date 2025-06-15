@@ -3,9 +3,9 @@ import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert, A
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import axios from 'axios';
 import fetchCustomers from '../../../database-connect/admin/customer/Featch';
 import { API_CONFIG } from '../../../database-connect/Apichange'; // Assuming similar config as SellerDetails
+import deleteCustomer from '../../../database-connect/admin/customer/deleteCustomer';
 
 const CustomerListScreen = () => {
   const navigation = useNavigation();
@@ -15,10 +15,9 @@ const CustomerListScreen = () => {
   const [visibleCustomers, setVisibleCustomers] = useState([]);
   const [totalMoney, setTotalMoney] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1); // Added missing state
-  const itemsPerPage = 5;
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  // Define gradient colors
   const gradientColors = ['#E6F0FA', '#FFFFFF'];
 
   useEffect(() => {
@@ -59,22 +58,19 @@ const CustomerListScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await axios.delete(`${API_CONFIG.deleteCustomer}`, {
-                headers: { 'Content-Type': 'application/json' },
-                data: { Customer_id: id },
-              });
-              if (response.data.status === 'success') {
+              const response = await deleteCustomer(id);
+              if (response.status === 'success') {
                 const updatedCustomers = customers.filter(customer => customer.id !== id);
                 setCustomers(updatedCustomers);
                 setFilteredCustomers(updatedCustomers);
                 updateVisibleCustomers(updatedCustomers, currentPage);
                 Alert.alert('Success', 'Customer deleted successfully');
               } else {
-                Alert.alert('Error', response.data.message || 'Failed to delete customer');
+                Alert.alert('Error', response.message || 'Failed to delete customer');
               }
             } catch (error) {
-              console.error('Delete Customer Error:', error);
-              Alert.alert('Error', 'Failed to connect to server');
+              console.error('Delete Customer Error:', error.message);
+              Alert.alert('Error', error.message || 'Failed to connect to server');
             }
           },
         },
@@ -91,7 +87,7 @@ const CustomerListScreen = () => {
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage); // Fixed bug: was setCurrentPage(1)
+      setCurrentPage(newPage);
       updateVisibleCustomers(filteredCustomers, newPage);
     }
   };
@@ -101,19 +97,20 @@ const CustomerListScreen = () => {
       <Text style={[styles.headerCell, { width: 100 }]}>Name</Text>
       <Text style={[styles.headerCell, { width: 100 }]}>Phone</Text>
       <Text style={[styles.headerCell, { width: 100 }]}>Address</Text>
-      <Text style={[styles.headerCell, { width: 100 }]}>Price (₹/L)</Text>
+      <Text style={[styles.headerCell, { width: 80 }]}>Price (₹/L)</Text>
+      <Text style={[styles.headerCell, { width: 100 }]}>Date of Joining</Text>
       <Text style={[styles.headerCell, { width: 100 }]}>Actions</Text>
     </View>
   );
 
   const renderCustomerItem = ({ item }) => (
-<TouchableOpacity
-    style={styles.tableRow}
-    onPress={() => {
-      console.log('Navigating to CustomerDetail with customer:', item);
-      navigation.navigate('CustomerDetail', { customer: item, isAdmin: true });
-    }}
-  >
+    <TouchableOpacity
+      style={styles.tableRow}
+      onPress={() => {
+        console.log('Navigating to CustomerDetail with customer:', item);
+        navigation.navigate('CustomerDetail', { customer: item, isAdmin: true });
+      }}
+    >
       <Text style={[styles.cell, { width: 100 }]} numberOfLines={1} ellipsizeMode="tail">
         {item.username || 'N/A'}
       </Text>
@@ -123,14 +120,19 @@ const CustomerListScreen = () => {
       <Text style={[styles.cell, { width: 100 }]} numberOfLines={1} ellipsizeMode="tail">
         {item.address || 'N/A'}
       </Text>
-      <Text style={[styles.cell, { width: 100 }]}>
+      <Text style={[styles.cell, { width: 80 }]}>
         ₹{(item.price || 0).toFixed(2)}
       </Text>
+      <Text style={[styles.cell, { width: 100 }]} numberOfLines={1} ellipsizeMode="tail">
+        {new Date(item.startDate).toLocaleDateString('en-GB') || 'N/A'}
+      </Text>
       <View style={[styles.cell, styles.actionCell, { width: 100 }]}>
-        <TouchableOpacity onPress={(e) => {
-          e.stopPropagation();
-          handleEdit(item);
-        }}>
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            handleEdit(item);
+          }}
+        >
           <Icon name="pencil" size={20} color="#4CAF50" />
         </TouchableOpacity>
         <TouchableOpacity
@@ -205,10 +207,6 @@ const CustomerListScreen = () => {
         <Text style={styles.headerTitle}>Customer List</Text>
         <View style={styles.statsContainer}>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>N/A</Text>
-            <Text style={styles.statLabel}>Total Milk</Text>
-          </View>
-          <View style={styles.statBox}>
             <Text style={styles.statValue}>₹{totalMoney.toFixed(2)}</Text>
             <Text style={styles.statLabel}>Total Price/Liter</Text>
           </View>
@@ -235,7 +233,7 @@ const CustomerListScreen = () => {
                 keyExtractor={item => item.id}
                 renderItem={renderCustomerItem}
                 ListEmptyComponent={<Text style={styles.emptyText}>No customers found</Text>}
-                scrollEnabled={false} // Disable vertical scrolling in FlatList
+                scrollEnabled={false}
               />
             )}
           </View>
@@ -262,7 +260,7 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
   statBox: {
     backgroundColor: '#fff',
@@ -318,7 +316,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   tableContent: {
-    minWidth: 600, // Slightly reduced for better fit on smaller screens
+    minWidth: 580,
     flexDirection: 'column',
   },
   tableHeader: {
@@ -341,7 +339,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
     alignItems: 'center',
-    minWidth: 600, // Match tableContent width
+    minWidth: 580,
   },
   cell: {
     fontSize: 14,

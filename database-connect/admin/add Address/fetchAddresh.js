@@ -8,7 +8,7 @@ const fetchAddresses = async (setAddresses, setFilteredAddresses, updateVisibleA
     });
 
     if (response.data.status !== 'success' || !Array.isArray(response.data.data)) {
-      throw new Error(response.data.message || 'Invalid response format from server');
+      throw new Error(response.data.message || 'Invalid response format');
     }
 
     const mappedData = response.data.data.map(address => ({
