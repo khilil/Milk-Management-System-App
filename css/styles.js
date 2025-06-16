@@ -1,124 +1,99 @@
 import { StyleSheet } from 'react-native';
+import { Dimensions } from 'react-native';
 
-export default StyleSheet.create({
+const { width } = Dimensions.get('window');
+const boxSize = (width - 40) / 3; // Adjust for 3 columns with padding
+
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f4f7fa',
   },
   headerContainer: {
-    paddingTop: 0,
-    backgroundColor: 'transparent',
+    paddingHorizontal: 15,
+    paddingTop: 10,
   },
   headerCard: {
-    padding: 24,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    marginBottom: 12,
-    borderRadius: 20,
+    borderRadius: 10,
+    padding: 20,
+    marginBottom: 20,
   },
   headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
   headerLeft: {
     flex: 1,
   },
   greeting: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#2A5866',
-    marginBottom: 16,
-    fontFamily: 'System',
-    letterSpacing: 0.3,
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#333',
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 10,
   },
   statBox: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    width: '48%',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    flex: 1,
   },
   statValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#2A5866',
-    marginVertical: 10,
-    letterSpacing: 0.2,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    marginVertical: 5,
   },
   statLabel: {
-    fontSize: 15,
+    fontSize: 14,
+  },
+  locationsContainer: {
+    marginTop: 10,
+  },
+  locationsTitle: {
+    fontSize: 16,
     fontWeight: '500',
-    color: '#4b5563',
-    textAlign: 'center',
+    color: '#333',
+    marginBottom: 5,
+  },
+  locationText: {
+    fontSize: 14,
+    color: '#666',
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#2A5866',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    letterSpacing: 0.3,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginVertical: 10,
+    paddingHorizontal: 15,
   },
   listContent: {
-    paddingHorizontal: 12,
-    paddingBottom: 24,
+    paddingHorizontal: 10,
+    paddingTop: 10,
   },
   touchableBox: {
     flex: 1,
-    margin: 10,
-    maxWidth: '31%',
+    margin: 5,
+    alignItems: 'center',
+    maxWidth: boxSize, // Ensure uniform width
   },
   box: {
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
+    width: boxSize,
+    height: boxSize, // Fixed size for square boxes
     justifyContent: 'center',
-    minHeight: 130,
-    elevation: 6,
-    shadowColor: '#000',
-    // shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
+    alignItems: 'center',
+    borderRadius: 10,
     overflow: 'hidden',
   },
-  badge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#e53e3e',
-    borderRadius: 14,
-    width: 26,
-    height: 26,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
   icon: {
-    marginBottom: 10,
+    marginBottom: 5,
   },
   boxText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 12, // Smaller font to fit text
     color: '#fff',
+    fontWeight: '500',
     textAlign: 'center',
-    letterSpacing: 0.3,
+    paddingHorizontal: 5,
   },
   patternOverlay: {
     position: 'absolute',
@@ -126,6 +101,8 @@ export default StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
   },
 });
+
+export default styles;

@@ -8,12 +8,12 @@ import { useNavigation } from '@react-navigation/native';
 import { fetchSellerDashboardData } from '../../database-connect/seller-screen/deashbord/fetchSellerDashboardData';
 
 const features = [
-  { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Coustomer' },
+  { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Customer' },
   { id: '2', name: 'Select Area', icon: 'map', color: '#34495e', screen: 'addressSelect' },
-  { id: '3', name: 'Coustomer Milk Data', icon: 'cup-water', color: '#2ecc71', screen: 'CoustomerMilkAssingDataList' },
+  { id: '3', name: 'Customer Milk Data', icon: 'cup-water', color: '#2ecc71', screen: 'CoustomerMilkAssingDataList' }, // Fixed typo
   { id: '4', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments' },
   { id: '5', name: 'Gather Payment', icon: 'chart-bar', color: '#1abc9c', screen: 'gather payment' },
-  { id: '6', name: 'Milk Assiging', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
+  { id: '6', name: 'Milk Assigning', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
   { id: '7', name: 'Milk Selling', icon: 'beer-outline', color: '#7f8c8d', screen: 'Milk selling' },
 ];
 
@@ -96,9 +96,9 @@ export default function SellerDashboard() {
 
   return (
     <LinearGradient colors={['#f4f7fa', '#e5e7eb']} style={styles.container}>
-      <Animated.View style={{ opacity: fadeAnim }}>
+      <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
         {/* Header Section */}
-        <View style={styles.headerContainer}>
+        <View style={[styles.headerContainer, { paddingTop: 10 }]}>
           <LinearGradient
             colors={['#ffffff', '#f8fafc']}
             style={styles.headerCard}
@@ -110,12 +110,12 @@ export default function SellerDashboard() {
                   <View style={styles.statBox}>
                     <Icon name="nutrition" size={24} color="#e74c3c" />
                     <Text style={styles.statValue}>{dashboardData.total_assigned} L</Text>
-                    <Text style={styles.statLabel}>Assigned Today</Text>
+                    <Text style={[styles.statLabel, { color: '#666' }]}>Assigned Today</Text>
                   </View>
                   <View style={styles.statBox}>
                     <Icon name="map-marker" size={24} color="#34495e" />
                     <Text style={styles.statValue}>{dashboardData.delivery_locations.length}</Text>
-                    <Text style={styles.statLabel}>Delivery Locations</Text>
+                    <Text style={[styles.statLabel, { color: '#666' }]}>Delivery Locations</Text>
                   </View>
                 </View>
                 {dashboardData.delivery_locations.length > 0 && (
@@ -142,7 +142,14 @@ export default function SellerDashboard() {
           data={features}
           keyExtractor={(item) => item.id}
           numColumns={3}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+          decelerationRate="fast"
+          scrollEventThrottle={16}
+          initialNumToRender={9}
+          maxToRenderPerBatch={6}
+          windowSize={5}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.touchableBox}
@@ -166,7 +173,6 @@ export default function SellerDashboard() {
             </TouchableOpacity>
           )}
         />
-
       </Animated.View>
     </LinearGradient>
   );

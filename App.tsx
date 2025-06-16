@@ -21,6 +21,7 @@ import AddressSelectionScreen from './Page/Seller Screen/addressSelect/AddressSe
 import GatherPayment from './Page/Seller Screen/gather-payment/gather-payment.jsx';
 import SellerDetailScreen from './Page/superAdmin/seller/SellerDetailScreen.jsx';
 import SplashScreen from './Page/splashscreen/SplashScreen.js';
+import Customer from './Page/superAdmin/customer/Customer';
 
 const Stack = createNativeStackNavigator();
 
@@ -198,8 +199,8 @@ export default function App() {
           }}
         />
         <Stack.Screen
-          name="Coustomer"
-          component={Coustomer}
+          name="Customer"
+          component={Customer}
           options={{
             title: 'Add Customer',
             headerShown: true,

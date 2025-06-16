@@ -8,7 +8,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { fetchDashboardData } from '../../database-connect/admin/deashbord/deashbord';
 
 const features = [
-  { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Coustomer' },
+  { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Customer' }, // Fixed typo
   { id: '2', name: 'Add Seller', icon: 'account-group', color: '#e67e22', screen: 'AddSeller' },
   { id: '3', name: 'Add Address', icon: 'earth', color: '#34495e', screen: 'Address' },
   { id: '7', name: 'Milk Assigning', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
@@ -97,9 +97,9 @@ export default function HomeScreen() {
 
   return (
     <LinearGradient colors={['#f4f7fa', '#e5e7eb']} style={styles.container}>
-      <Animated.View style={{ opacity: fadeAnim }}>
+      <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
         {/* Header Section */}
-        <View style={styles.headerContainer}>
+        <View style={[styles.headerContainer, { paddingTop: 10 }]}>
           <LinearGradient
             colors={['#ffffff', '#f8fafc']}
             style={styles.headerCard}
@@ -107,16 +107,17 @@ export default function HomeScreen() {
             <View style={styles.headerContent}>
               <View style={styles.headerLeft}>
                 <Text style={styles.greeting}>{greeting}</Text>
+                <Text style={[styles.headerText, { color: '#666' }]}>Welcome to your dashboard.</Text>
                 <View style={styles.statsContainer}>
                   <View style={styles.statBox}>
-                    <Icon name="cup-water" size={24} color="#3498db" />
+                    <Icon name="cup-water" size={styles.headerIconSize || 24} color="#3498db" />
                     <Text style={styles.statValue}>{dashboardData.totalDistributed} L</Text>
-                    <Text style={styles.statLabel}>Distributed Today</Text>
+                    <Text style={[styles.statLabel, { color: '#666' }]}>Distributed Today</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Icon name="nutrition" size={24} color="#e74c3c" />
+                    <Icon name="nutrition" size={styles.headerIconSize || 24} color="#e74c3c" />
                     <Text style={styles.statValue}>{dashboardData.totalAssigned} L</Text>
-                    <Text style={styles.statLabel}>Assigned Today</Text>
+                    <Text style={[styles.statLabel, { color: '#666' }]}>Assigned Today</Text>
                   </View>
                 </View>
               </View>
@@ -130,7 +131,14 @@ export default function HomeScreen() {
           data={features}
           keyExtractor={(item) => item.id}
           numColumns={3}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]} // Increased padding for scroll
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+          decelerationRate="fast"
+          scrollEventThrottle={16} // Optimize scroll performance
+          initialNumToRender={9} // Render 3 rows (3 columns * 3 rows) initially
+          maxToRenderPerBatch={6} // Control rendering for performance
+          windowSize={5} // Optimize rendering window
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.touchableBox}
