@@ -9,12 +9,12 @@ import { fetchSellerDashboardData } from '../../database-connect/seller-screen/d
 
 const features = [
   { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Customer' },
-  { id: '2', name: 'Select Area', icon: 'map', color: '#34495e', screen: 'addressSelect' },
-  { id: '3', name: 'Customer Milk Data', icon: 'cup-water', color: '#2ecc71', screen: 'CoustomerMilkAssingDataList' }, // Fixed typo
+  { id: '2', name: 'Select Area', icon: 'map', color: '#34495e', screen: 'AddressSelect' },
+  { id: '3', name: 'Customer Milk Data', icon: 'cup-water', color: '#2ecc71', screen: 'CustomerMilkAssignDataList' }, // Fixed typo
   { id: '4', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments' },
-  { id: '5', name: 'Gather Payment', icon: 'chart-bar', color: '#1abc9c', screen: 'gather payment' },
+  { id: '5', name: 'Gather Payment', icon: 'chart-bar', color: '#1abc9c', screen: 'GatherPayment' },
   { id: '6', name: 'Milk Assigning', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
-  { id: '7', name: 'Milk Selling', icon: 'beer-outline', color: '#7f8c8d', screen: 'Milk selling' },
+  { id: '7', name: 'Milk Selling', icon: 'beer-outline', color: '#7f8c8d', screen: 'MilkSelling' },
 ];
 
 export default function SellerDashboard() {

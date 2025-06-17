@@ -81,7 +81,7 @@ const MilkSelling = () => {
               text1: 'Error',
               text2: 'No areas selected. Please select areas first.',
             });
-            navigation.navigate('addressSelect');
+            navigation.navigate('AddressSelect');
           }
         } else {
           Toast.show({
@@ -482,7 +482,7 @@ const MilkSelling = () => {
           <Text style={styles.headerTitle}>Milk Distribution</Text>
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => navigation.navigate('addressSelect')}
+            onPress={() => navigation.navigate('AddressSelect')}
           >
             <AntDesign name="enviromento" size={20} color="#FFFFFF" />
           </TouchableOpacity>

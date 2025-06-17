@@ -83,7 +83,7 @@ const GatherPayment = () => {
                             text1: 'Error',
                             text2: 'No areas selected. Please select areas first.',
                         });
-                        navigation.navigate('addressSelect');
+                        navigation.navigate('AddressSelect');
                     }
                 } else {
                     Toast.show({
@@ -405,7 +405,7 @@ const GatherPayment = () => {
                     <Text style={styles.headerTitle}>Payment Management</Text>
                     <TouchableOpacity
                         style={styles.headerButton}
-                        onPress={() => navigation.navigate('addressSelect')}
+                        onPress={() => navigation.navigate('AddressSelect')}
                     >
                         <AntDesign name="enviromento" size={20} color="#FFFFFF" />
                     </TouchableOpacity>
