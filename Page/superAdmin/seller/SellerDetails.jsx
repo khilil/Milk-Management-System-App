@@ -17,37 +17,44 @@ const SellerDetails = () => {
   const [isLoading, setIsLoading] = useState(false);
   const itemsPerPage = 7;
 
-  useEffect(() => {
-    const fetchSellers = async () => {
-      setIsLoading(true);
-      try {
-        const response = await axios.get(API_CONFIG.fetchSeller, {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 10000, // Increased timeout to 10 seconds
-        });
-        console.log('Fetch Sellers Response:', response.data);
-        if (response.data.status === 'success' && Array.isArray(response.data.data)) {
-          const formattedSellers = response.data.data.map(seller => ({
-            id: seller.Seller_id?.toString() || '',
-            username: seller.Name || 'Unknown',
-            phone: seller.Contact || '',
-            vehicleNo: seller.Vehicle_no || '',
-          }));
-          setSellers(formattedSellers);
-          setFilteredSellers(formattedSellers);
-          updateVisibleSellers(formattedSellers, 1);
-        } else {
-          Alert.alert('Error', response.data.message || 'Failed to load sellers');
-        }
-      } catch (error) {
-        console.error('Fetch Sellers Error:', error.message);
-        Alert.alert('Error', error.response?.data?.message || 'Failed to connect to server');
-      } finally {
-        setIsLoading(false);
+ useEffect(() => {
+  const fetchSellers = async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get(API_CONFIG.fetchSeller, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 15000,
+      });
+      console.log('Fetch Sellers Response:', response.data);
+      if (response.data && response.data.status === 'success') {
+        const formattedSellers = Array.isArray(response.data.data)
+          ? response.data.data.map(seller => ({
+              id: seller.Seller_id?.toString() || '',
+              username: seller.Name || 'Unknown',
+              phone: seller.Contact || '',
+              vehicleNo: seller.Vehicle_no || '',
+            }))
+          : [];
+        setSellers(formattedSellers);
+        setFilteredSellers(formattedSellers);
+        updateVisibleSellers(formattedSellers, 1);
+      } else {
+        Alert.alert('Error', response.data?.message || 'Invalid response from server');
       }
-    };
-    fetchSellers();
-  }, []);
+    } catch (error) {
+      console.error('Fetch Sellers Error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        headers: error.response?.headers,
+      });
+      Alert.alert('Error', error.response?.data?.message || 'Failed to connect to server');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  fetchSellers();
+}, []);
 
   useEffect(() => {
     const filtered = sellers.filter(
