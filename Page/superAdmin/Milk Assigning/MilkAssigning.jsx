@@ -14,30 +14,33 @@ const MilkAssignScreen = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Load sellers
-        const sellerResponse = await fetchSellers();
-        console.log('Fetch Sellers Response:', sellerResponse);
-        if (Array.isArray(sellerResponse)) {
-          setSellers(sellerResponse);
-          if (sellerResponse.length > 0) {
-            setSelectedSeller(sellerResponse[0].Seller_id);
-          }
+useEffect(() => {
+  const loadData = async () => {
+    try {
+      const sellerResponse = await fetchSellers();
+      console.log('Fetch Sellers Response:', sellerResponse);
+      if (sellerResponse.status === 'success' && Array.isArray(sellerResponse.data)) {
+        setSellers(sellerResponse.data);
+        if (sellerResponse.data.length > 0) {
+          setSelectedSeller(sellerResponse.data[0].Seller_id);
         } else {
-          Alert.alert('Error', sellerResponse.message || 'Invalid seller data received');
+          Alert.alert('Warning', 'No sellers available.');
         }
-
-        // Load assignments for selected date
-        loadAssignments();
-      } catch (error) {
-        console.error('Load Data Error:', error);
-        Alert.alert('Error', 'Failed to connect to server.');
+      } else {
+        const errorMessage = sellerResponse.message || 'Invalid seller data received';
+        console.error('Unexpected seller response:', sellerResponse);
+        Alert.alert('Error', errorMessage);
+        setSellers([]);
       }
-    };
-    loadData();
-  }, []);
+      loadAssignments();
+    } catch (error) {
+      console.error('Load Data Error:', error);
+      Alert.alert('Error', 'Failed to connect to server.');
+      setSellers([]);
+    }
+  };
+  loadData();
+}, []);
 
   const loadAssignments = async () => {
     try {
