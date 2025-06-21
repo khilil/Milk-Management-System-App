@@ -3,7 +3,7 @@ import { API_CONFIG } from '../../Apichange';
 
 
 
-const API_URL =   API_CONFIG.addAddress;
+const API_URL = API_CONFIG.addAddress;
 export const fetchAddresses = async () => {
   try {
     const response = await axios.get(`${API_URL}?path=addresses`, {
@@ -20,7 +20,7 @@ export const fetchAddresses = async () => {
 };
 
 
-// const API_URL = API_CONFIG.BASE_URL; // Use customer.php for addCustomer
+
 export const addCustomer = async (customerData) => {
   try {
     const response = await axios.post(API_CONFIG.BASE_URL, customerData, {

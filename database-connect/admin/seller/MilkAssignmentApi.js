@@ -14,13 +14,14 @@ export const fetchSellers = async () => {
     return response.data;
   } catch (error) {
     console.error('Error fetching sellers:', error);
-    throw error;
+    throw error.response?.data || { message: 'Failed to fetch sellers' };
   }
 };
 
 export const fetchAssignments = async (date) => {
   try {
-    const response = await axios.get(`${API_URL}?date=${date}`, {
+    const encodedDate = encodeURIComponent(date);
+    const response = await axios.get(`${API_URL}?date=${encodedDate}`, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -29,7 +30,7 @@ export const fetchAssignments = async (date) => {
     return response.data;
   } catch (error) {
     console.error('Error fetching assignments:', error);
-    throw error;
+    throw error.response?.data || { message: 'Failed to fetch assignments' };
   }
 };
 
@@ -44,7 +45,7 @@ export const assignMilk = async (assignmentData) => {
     return response.data;
   } catch (error) {
     console.error('Error assigning milk:', error);
-    throw error;
+    throw error.response?.data || { message: 'Failed to assign milk' };
   }
 };
 
@@ -60,6 +61,6 @@ export const deleteAssignment = async (assignmentId) => {
     return response.data;
   } catch (error) {
     console.error('Error deleting assignment:', error);
-    throw error;
+    throw error.response?.data || { message: 'Failed to delete assignment' };
   }
 };

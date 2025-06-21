@@ -92,6 +92,9 @@ const Customer = () => {
           Date: formattedDate,
         };
 
+        console.log('Submitting payload:', payload);
+
+
         const response = await addCustomer(payload);
         if (response.status === 'success') {
           Alert.alert('Success', 'Customer added successfully');
