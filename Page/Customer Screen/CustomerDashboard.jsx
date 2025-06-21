@@ -589,7 +589,7 @@ const CustomerDashboard = ({ route }) => {
     <LinearGradient colors={['#F8F9FB', '#EFF2F6']} style={styles.container}>
       <FlatList
         data={customer ? paginatedRecords : []}
-        keyExtractor={item => item.date}
+        keyExtractor={item => item.key} 
         renderItem={renderMilkRecord}
         ListHeaderComponent={<HeaderContent />}
         ListEmptyComponent={
