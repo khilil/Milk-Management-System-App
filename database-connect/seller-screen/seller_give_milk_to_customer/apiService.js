@@ -109,3 +109,23 @@ export const fetchDistributionDetails = async (sellerId, date) => {
     throw new Error('Failed to fetch distribution details: ' + error.message);
   }
 };
+
+const API_URL = API_CONFIG.sellermilkdistrubiute; // Adjust to your API base URL
+
+export const fetchAddresses = async (addressIds) => {
+  try {
+    const addressIdsString = addressIds.join(',');
+    const response = await axios.get(`${API_URL}?path=addresses&address_ids=${addressIdsString}`, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 5000,
+    });
+    if (response.data.status === 'success') {
+      return response.data.data;
+    } else {
+      throw new Error(response.data.message || 'Failed to fetch addresses');
+    }
+  } catch (error) {
+    console.error('Fetch Addresses Error:', error.message);
+    throw new Error(error.message || 'Failed to fetch addresses');
+  }
+};

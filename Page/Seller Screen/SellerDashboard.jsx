@@ -10,10 +10,9 @@ import { fetchSellerDashboardData } from '../../database-connect/seller-screen/d
 const features = [
   { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Customer' },
   { id: '2', name: 'Select Area', icon: 'map', color: '#34495e', screen: 'AddressSelect' },
-  { id: '3', name: 'Customer Milk Data', icon: 'cup-water', color: '#2ecc71', screen: 'CustomerMilkAssignDataList' }, // Fixed typo
+  { id: '3', name: 'Customer Milk Data', icon: 'cup-water', color: '#2ecc71', screen: 'CustomerMilkAssignDataList' },
   { id: '4', name: 'Payments', icon: 'cash-multiple', color: '#9b59b6', screen: 'Payments' },
   { id: '5', name: 'Gather Payment', icon: 'chart-bar', color: '#1abc9c', screen: 'GatherPayment' },
-  // { id: '6', name: 'Milk Assigning', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
   { id: '6', name: 'Milk Selling', icon: 'beer-outline', color: '#7f8c8d', screen: 'MilkSelling' },
 ];
 
@@ -22,10 +21,24 @@ export default function SellerDashboard() {
   const [dashboardData, setDashboardData] = useState({
     seller_name: 'Seller',
     total_assigned: 0,
-    delivery_locations: [],
+    remaining_quantity: 0,
   });
   const [greeting, setGreeting] = useState('Good Morning, Seller!');
   const fadeAnim = useState(new Animated.Value(0))[0];
+
+  // Fetch dashboard data
+  const fetchData = async () => {
+    try {
+      const data = await fetchSellerDashboardData();
+      setDashboardData({
+        seller_name: data.seller_name || 'Seller',
+        total_assigned: data.total_assigned || 0,
+        remaining_quantity: data.remaining_quantity || 0,
+      });
+    } catch (error) {
+      console.error('Error fetching seller dashboard data:', error.message);
+    }
+  };
 
   // Fade-in animation
   useEffect(() => {
@@ -36,39 +49,34 @@ export default function SellerDashboard() {
     }).start();
   }, [fadeAnim]);
 
-  // Dynamic greeting
+  // Refresh data when screen is focused
   useEffect(() => {
-    const updateGreeting = () => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('Dashboard focused, refreshing data...');
+      fetchData();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  // Dynamic greeting and periodic data refresh
+  useEffect(() => {
+    const updateGreetingAndData = async () => {
       const hour = new Date().getHours();
-      if (hour < 12) {
-        setGreeting(`Good Morning, ${dashboardData.seller_name}!`);
-      } else if (hour < 17) {
-        setGreeting(`Good Afternoon, ${dashboardData.seller_name}!`);
-      } else {
-        setGreeting(`Good Evening, ${dashboardData.seller_name}!`);
-      }
+      const newGreeting = hour < 12
+        ? `Good Morning, ${dashboardData.seller_name}!`
+        : hour < 17
+        ? `Good Afternoon, ${dashboardData.seller_name}!`
+        : `Good Evening, ${dashboardData.seller_name}!`;
+      setGreeting(newGreeting);
+
+      // Periodic fetch (fallback)
+      await fetchData();
     };
-    updateGreeting();
-    const interval = setInterval(updateGreeting, 60000);
+
+    updateGreetingAndData(); // Initial fetch
+    const interval = setInterval(updateGreetingAndData, 60000); // Refresh every minute
     return () => clearInterval(interval);
   }, [dashboardData.seller_name]);
-
-  // Fetch dashboard data
-  useEffect(() => {
-    const getDashboardData = async () => {
-      try {
-        const data = await fetchSellerDashboardData();
-        setDashboardData({
-          seller_name: data.seller_name || 'Seller',
-          total_assigned: data.total_assigned || 0,
-          delivery_locations: data.delivery_locations || [],
-        });
-      } catch (error) {
-        console.error('Error fetching seller dashboard data:', error.message);
-      }
-    };
-    getDashboardData();
-  }, []);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -113,24 +121,11 @@ export default function SellerDashboard() {
                     <Text style={[styles.statLabel, { color: '#666' }]}>Assigned Today</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Icon name="map-marker" size={24} color="#34495e" />
-                    <Text style={styles.statValue}>{dashboardData.delivery_locations.length}</Text>
-                    <Text style={[styles.statLabel, { color: '#666' }]}>Delivery Locations</Text>
+                    <Icon name="bottle-tonic" size={24} color="#3498db" />
+                    <Text style={styles.statValue}>{dashboardData.remaining_quantity} L</Text>
+                    <Text style={[styles.statLabel, { color: '#666' }]}>Remaining Milk</Text>
                   </View>
                 </View>
-                {dashboardData.delivery_locations.length > 0 && (
-                  <View style={styles.locationsContainer}>
-                    <Text style={styles.locationsTitle}>Today’s Delivery Locations:</Text>
-                    {dashboardData.delivery_locations.slice(0, 2).map((location, index) => (
-                      <Text key={index} style={styles.locationText} numberOfLines={1}>
-                        • {location}
-                      </Text>
-                    ))}
-                    {dashboardData.delivery_locations.length > 2 && (
-                      <Text style={styles.locationText}>+{dashboardData.delivery_locations.length - 2} more</Text>
-                    )}
-                  </View>
-                )}
               </View>
             </View>
           </LinearGradient>

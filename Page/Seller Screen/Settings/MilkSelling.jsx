@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -11,7 +12,7 @@ import {
   FlatList,
   Animated,
   ScrollView,
-  RefreshControl, // Added RefreshControl import
+  RefreshControl,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import AntDesign from 'react-native-vector-icons/AntDesign';
@@ -19,7 +20,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
-import { fetchCustomers, recordDelivery, fetchTotalMilkSold, fetchMilkAssignment, fetchDistributionDetails, deleteDelivery } from '../../../database-connect/seller-screen/seller_give_milk_to_customer/apiService';
+import { fetchCustomers, recordDelivery, fetchTotalMilkSold, fetchMilkAssignment, fetchDistributionDetails, deleteDelivery, fetchAddresses } from '../../../database-connect/seller-screen/seller_give_milk_to_customer/apiService';
 import debounce from 'lodash.debounce';
 
 const MilkSelling = () => {
@@ -45,7 +46,7 @@ const MilkSelling = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [showEntries, setShowEntries] = useState(false);
-  const [refreshing, setRefreshing] = useState(false); // Added state for refresh control
+  const [refreshing, setRefreshing] = useState(false);
   const searchInputRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -64,6 +65,7 @@ const MilkSelling = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
+        setLoading(true);
         const userId = await AsyncStorage.getItem('userId');
         const userRole = await AsyncStorage.getItem('userRole');
         if (userId && userRole === 'seller') {
@@ -72,15 +74,39 @@ const MilkSelling = () => {
           if (storedAddressIds) {
             const addressIds = JSON.parse(storedAddressIds);
             setSelectedAddressIds(addressIds);
-            setSelectedAddressId(addressIds[0]);
-            const addressNames = addressIds.map(id => ({ Address_id: id, Name: `Area ${id}` }));
-            setAddresses(addressNames);
+            
+            try {
+              const addressData = await fetchAddresses(addressIds);
+              setAddresses(addressData.map(addr => ({
+                Address_id: addr.Address_id,
+                Name: addr.Address
+              })));
+            } catch (error) {
+              console.error('Fetch Addresses Error:', error);
+              setAddresses(addressIds.map(id => ({ Address_id: id, Name: `Area ${id}` })));
+              Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'Failed to fetch address names',
+              });
+            }
+            
+            if (addressIds.length > 0) {
+              setSelectedAddressId(addressIds[0]);
+            } else {
+              Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'No areas selected. Please select areas first.',
+              });
+              navigation.navigate('AddressSelect');
+            }
           } else {
             Toast.show({
               type: 'error',
               text1: 'Error',
               text2: 'No areas selected. Please select areas first.',
-            });
+              });
             navigation.navigate('AddressSelect');
           }
         } else {
@@ -98,6 +124,8 @@ const MilkSelling = () => {
           text1: 'Error',
           text2: 'Failed to load initial data',
         });
+      } finally {
+        setLoading(false);
       }
     };
     loadInitialData();
@@ -173,13 +201,11 @@ const MilkSelling = () => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      // Reset pagination
       setPage(1);
       setCustomers([]);
       setFilteredCustomers([]);
       setHasMore(true);
 
-      // Refetch initial data
       const userId = await AsyncStorage.getItem('userId');
       const userRole = await AsyncStorage.getItem('userRole');
       if (userId && userRole === 'seller') {
@@ -188,12 +214,25 @@ const MilkSelling = () => {
         if (storedAddressIds) {
           const addressIds = JSON.parse(storedAddressIds);
           setSelectedAddressIds(addressIds);
-          setSelectedAddressId(addressIds[0]);
-          const addressNames = addressIds.map(id => ({ Address_id: id, Name: `Area ${id}` }));
-          setAddresses(addressNames);
-
-          // Fetch customers for the first page
-          if (addressIds[0]) {
+          
+          try {
+            const addressData = await fetchAddresses(addressIds);
+            setAddresses(addressData.map(addr => ({
+              Address_id: addr.Address_id,
+              Name: addr.Address
+            })));
+          } catch (error) {
+            console.error('Fetch Addresses Error:', error);
+            setAddresses(addressIds.map(id => ({ Address_id: id, Name: `Area ${id}` })));
+            Toast.show({
+              type: 'error',
+              text1: 'Error',
+              text2: 'Failed to fetch address names',
+            });
+          }
+          
+          if (addressIds.length > 0) {
+            setSelectedAddressId(addressIds[0]);
             const customerData = await fetchCustomers([addressIds[0]]);
             const paginatedData = customerData.slice(0, ITEMS_PER_PAGE);
             setCustomers(paginatedData);
@@ -202,7 +241,6 @@ const MilkSelling = () => {
           }
         }
 
-        // Fetch milk data
         const [assignmentData, soldData, distData] = await Promise.all([
           fetchMilkAssignment(parseInt(userId), date),
           fetchTotalMilkSold(parseInt(userId), date),
@@ -408,6 +446,18 @@ const MilkSelling = () => {
     searchInputRef.current?.clear();
   };
 
+  // Set preset milk quantity
+  const setPresetQuantity = (quantity) => {
+    setMilkQuantity(quantity.toString());
+  };
+
+  // Calculate total price
+  const calculateTotalPrice = () => {
+    const quantity = parseFloat(milkQuantity) || 0;
+    const pricePerLiter = selectedCustomer?.Price || 0;
+    return (quantity * pricePerLiter).toFixed(2);
+  };
+
   // Render customer item
   const renderCustomer = ({ item }) => (
     <TouchableOpacity
@@ -459,10 +509,13 @@ const MilkSelling = () => {
           selectedAddressId === item.Address_id && styles.addressTextSelected,
         ]}
       >
-        {item.Name}
+        {item.Name || `Area ${item.Address_id}`}
       </Text>
     </TouchableOpacity>
   );
+
+  // Preset quantities
+  const presetQuantities = [0.5, 1, 1.5, 2, 2.5];
 
   return (
     <View style={styles.container}>
@@ -473,8 +526,8 @@ const MilkSelling = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#2A5866']} // Refresh indicator color
-            tintColor="#2A5866" // iOS refresh indicator color
+            colors={['#2A5866']}
+            tintColor="#2A5866"
           />
         }
       >
@@ -598,8 +651,43 @@ const MilkSelling = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              Deliver to {selectedCustomer?.Name} (ID: {selectedCustomer?.Customer_id})
+              Deliver to {selectedCustomer?.Name || 'N/A'} (ID: {selectedCustomer?.Customer_id || 'N/A'})
             </Text>
+
+            {/* Price and Total Price Boxes */}
+            <View style={styles.priceContainer}>
+              <View style={styles.priceBox}>
+                <Text style={styles.priceLabel}>Price per Liter</Text>
+                <Text style={styles.priceValue}>₹{selectedCustomer?.Price || '0.00'}</Text>
+              </View>
+              <View style={styles.priceBox}>
+                <Text style={styles.priceLabel}>Total Price</Text>
+                <Text style={styles.priceValue}>₹{calculateTotalPrice()}</Text>
+              </View>
+            </View>
+
+            {/* Preset Quantity Buttons */}
+            <View style={styles.presetQuantityContainer}>
+              {presetQuantities.map((quantity) => (
+                <TouchableOpacity
+                  key={quantity}
+                  style={[
+                    styles.presetButton,
+                    parseFloat(milkQuantity) === quantity && styles.presetButtonSelected,
+                  ]}
+                  onPress={() => setPresetQuantity(quantity)}
+                >
+                  <Text
+                    style={[
+                      styles.presetButtonText,
+                      parseFloat(milkQuantity) === quantity && styles.presetButtonTextSelected,
+                    ]}
+                  >
+                    {quantity}L
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <TouchableOpacity
               style={styles.modalInput}
@@ -920,6 +1008,56 @@ const styles = StyleSheet.create({
     color: '#1A2A44',
     marginBottom: 16,
     textAlign: 'center',
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  priceBox: {
+    flex: 1,
+    backgroundColor: '#F0F4F8',
+    borderRadius: 10,
+    padding: 12,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  priceLabel: {
+    fontSize: 14,
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  priceValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2A5866',
+  },
+  presetQuantityContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  presetButton: {
+    width: '30%',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#2A5866',
+    borderRadius: 10,
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  presetButtonSelected: {
+    backgroundColor: '#102D36FF',
+  },
+  presetButtonText: {
+    fontSize: 14,
+    color: '#F9FCFFFF',
+    fontWeight: '600',
+  },
+  presetButtonTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   modalInput: {
     flexDirection: 'row',

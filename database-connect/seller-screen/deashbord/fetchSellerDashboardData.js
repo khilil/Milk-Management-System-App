@@ -15,7 +15,11 @@ export const fetchSellerDashboardData = async () => {
     });
     console.log('Seller Dashboard Response:', response.data);
     if (response.data.status === 'success') {
-      return response.data.data;
+      return {
+        seller_name: response.data.data.seller_name,
+        total_assigned: response.data.data.total_assigned,
+        remaining_quantity: response.data.data.remaining_quantity
+      };
     } else {
       throw new Error(response.data.message || 'Failed to load dashboard data');
     }

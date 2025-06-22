@@ -28,10 +28,12 @@ const validateToken = async () => {
   try {
     const token = await AsyncStorage.getItem('token');
     if (!token) return false;
-    // Replace with your token validation endpoint
-    // const response = await api.get('/verify-token');
-    // return response.status === 'success';
-    return true; // Placeholder; implement actual validation
+    // Placeholder: Replace with actual API call to verify token
+    // const response = await fetch('YOUR_API_URL/verify-token', {
+    //   headers: { Authorization: `Bearer ${token}` },
+    // });
+    // return response.status === 200;
+    return true; // Assume token is valid for testing
   } catch (error) {
     console.error('Token validation failed:', error);
     return false;
@@ -42,11 +44,11 @@ export default function App() {
   const [initialRoute, setInitialRoute] = useState(null);
 
   useEffect(() => {
-    const checkLogin = async () => {
+    const checkLoginStatus = async () => {
       const tokenValid = await validateToken();
       if (!tokenValid) {
-        await AsyncStorage.clear(); // Clear invalid session
-        setInitialRoute('Login');
+        await AsyncStorage.clear();
+        setInitialRoute('Splash');
         return;
       }
 
@@ -54,13 +56,14 @@ export default function App() {
       if (role === 'admin') setInitialRoute('Home');
       else if (role === 'seller') setInitialRoute('SellerDashboard');
       else if (role === 'customer') setInitialRoute('CustomerDashboard');
-      else setInitialRoute('Login');
+      else setInitialRoute('Splash');
     };
-    checkLogin();
+
+    checkLoginStatus();
   }, []);
 
   if (initialRoute === null) {
-    return <SplashScreen />; // Show splash screen while checking login
+    return null; // Render nothing until route is determined
   }
 
   return (

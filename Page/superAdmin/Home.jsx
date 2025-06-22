@@ -3,12 +3,12 @@ import { View, Text, TouchableOpacity, FlatList, Animated } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import styles from '../../css/styles'; // Ensure this path matches your project structure
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { fetchDashboardData } from '../../database-connect/admin/deashbord/deashbord';
 
 const features = [
-  { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Customer' }, // Fixed typo
+  { id: '1', name: 'Add Customer', icon: 'account-plus', color: '#3498db', screen: 'Customer' },
   { id: '2', name: 'Add Seller', icon: 'account-group', color: '#e67e22', screen: 'AddSeller' },
   { id: '3', name: 'Add Address', icon: 'earth', color: '#34495e', screen: 'Address' },
   { id: '7', name: 'Milk Assigning', icon: 'nutrition', color: '#e74c3c', screen: 'MilkAssigning' },
@@ -25,6 +25,7 @@ export default function HomeScreen() {
     totalAssigned: 0,
   });
   const [greeting, setGreeting] = useState('Good Morning, Admin!');
+  const [error, setError] = useState(null); // State for error handling
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   // Fade-in animation
@@ -53,23 +54,29 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch dashboard data
-  useEffect(() => {
-    const getDashboardData = async () => {
-      try {
-        const data = await fetchDashboardData();
-        if (data.status === 'success') {
-          setDashboardData({
-            totalDistributed: data.data.total_distributed,
-            totalAssigned: data.data.total_assigned,
-          });
+  // Fetch dashboard data when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      const getDashboardData = async () => {
+        try {
+          setError(null); // Reset error state
+          const data = await fetchDashboardData();
+          if (data.status === 'success') {
+            setDashboardData({
+              totalDistributed: data.data.total_distributed,
+              totalAssigned: data.data.total_assigned,
+            });
+          } else {
+            setError('Failed to load dashboard data.');
+          }
+        } catch (error) {
+          console.error('Error fetching dashboard data:', error);
+          setError('Failed to fetch dashboard data. Please try again.');
         }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      }
-    };
-    getDashboardData();
-  }, []);
+      };
+      getDashboardData();
+    }, [])
+  );
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -108,18 +115,22 @@ export default function HomeScreen() {
               <View style={styles.headerLeft}>
                 <Text style={styles.greeting}>{greeting}</Text>
                 <Text style={[styles.headerText, { color: '#666' }]}>Welcome to your dashboard.</Text>
-                <View style={styles.statsContainer}>
-                  <View style={styles.statBox}>
-                    <Icon name="cup-water" size={styles.headerIconSize || 24} color="#3498db" />
-                    <Text style={styles.statValue}>{dashboardData.totalDistributed} L</Text>
-                    <Text style={[styles.statLabel, { color: '#666' }]}>Distributed Today</Text>
+                {error ? (
+                  <Text style={[styles.headerText, { color: '#e74c3c' }]}>{error}</Text>
+                ) : (
+                  <View style={styles.statsContainer}>
+                    <View style={styles.statBox}>
+                      <Icon name="cup-water" size={styles.headerIconSize || 24} color="#3498db" />
+                      <Text style={styles.statValue}>{dashboardData.totalDistributed} L</Text>
+                      <Text style={[styles.statLabel, { color: '#666' }]}>Distributed Today</Text>
+                    </View>
+                    <View style={styles.statBox}>
+                      <Icon name="nutrition" size={styles.headerIconSize || 24} color="#e74c3c" />
+                      <Text style={styles.statValue}>{dashboardData.totalAssigned} L</Text>
+                      <Text style={[styles.statLabel, { color: '#666' }]}>Assigned Today</Text>
+                    </View>
                   </View>
-                  <View style={styles.statBox}>
-                    <Icon name="nutrition" size={styles.headerIconSize || 24} color="#e74c3c" />
-                    <Text style={styles.statValue}>{dashboardData.totalAssigned} L</Text>
-                    <Text style={[styles.statLabel, { color: '#666' }]}>Assigned Today</Text>
-                  </View>
-                </View>
+                )}
               </View>
             </View>
           </LinearGradient>
@@ -131,14 +142,14 @@ export default function HomeScreen() {
           data={features}
           keyExtractor={(item) => item.id}
           numColumns={3}
-          contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]} // Increased padding for scroll
+          contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]}
           showsVerticalScrollIndicator={false}
           bounces={true}
           decelerationRate="fast"
-          scrollEventThrottle={16} // Optimize scroll performance
-          initialNumToRender={9} // Render 3 rows (3 columns * 3 rows) initially
-          maxToRenderPerBatch={6} // Control rendering for performance
-          windowSize={5} // Optimize rendering window
+          scrollEventThrottle={16}
+          initialNumToRender={9}
+          maxToRenderPerBatch={6}
+          windowSize={5}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.touchableBox}
@@ -155,11 +166,6 @@ export default function HomeScreen() {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                {item.id === '7' && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>3</Text>
-                  </View>
-                )}
                 <Icon name={item.icon} size={32} color="#fff" style={styles.icon} />
                 <Text style={styles.boxText}>{item.name}</Text>
                 <View style={styles.patternOverlay} />
