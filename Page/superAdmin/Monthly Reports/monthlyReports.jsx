@@ -98,7 +98,7 @@ const MonthlyReports = () => {
   // Calculate dashboard metrics
   const totalLiters = filteredDeliveries.reduce((sum, item) => sum + item.quantity, 0);
   const totalCost = filteredDeliveries.reduce(
-    (sum, item) => sum + item.quantity * item.customer_price,
+    (sum, item) => sum + (item.quantity * item.customer_price),
     0
   );
   const deliveryCount = filteredDeliveries.length;
@@ -230,18 +230,20 @@ const MonthlyReports = () => {
       ) : filteredDeliveries.length === 0 ? (
         <Text style={styles.noDataText}>No deliveries found for this date</Text>
       ) : (
-        <View style={styles.tableContainer}>
-          {renderTableHeader()}
-          <FlatList
-            data={filteredDeliveries}
-            renderItem={renderTableRow}
-            keyExtractor={(item) => item.delivery_id.toString()}
-            contentContainerStyle={styles.list}
-            initialNumToRender={20}
-            maxToRenderPerBatch={20}
-            windowSize={21}
-          />
-        </View>
+        <ScrollView style={styles.tableContainer} nestedScrollEnabled={true}>
+          <ScrollView horizontal={true} showsHorizontalScrollIndicator={true}>
+            <View>
+              {renderTableHeader()}
+              <FlatList
+                data={filteredDeliveries}
+                renderItem={renderTableRow}
+                keyExtractor={(item) => item.delivery_id.toString()}
+                scrollEnabled={false} // prevent FlatList internal scroll
+                contentContainerStyle={styles.list}
+              />
+            </View>
+          </ScrollView>
+        </ScrollView>
       )}
 
       {/* Modal for Full Details */}
@@ -438,6 +440,7 @@ const styles = StyleSheet.create({
     color: '#FFF',
     textAlign: 'left',
     paddingHorizontal: 4,
+    minWidth: 100, // Added to ensure columns are wide enough
   },
   tableRow: {
     flexDirection: 'row',
@@ -450,8 +453,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#333',
     fontWeight: '500',
-    textAlign: 'center',
+    textAlign: 'left', // Changed to left for better alignment
     paddingHorizontal: 4,
+    minWidth: 100, // Added to ensure columns are wide enough
   },
   loader: {
     marginTop: 20,
