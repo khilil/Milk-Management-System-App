@@ -4,21 +4,23 @@ import { API_CONFIG } from '../../Apichange';
 // Create Axios instance
 const api = axios.create({
   baseURL: API_CONFIG.getDistributeMilkData,
-  timeout: 10000, // 10-second timeout
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Function to fetch milk delivery report
-export const getMilkDeliveryReport = async (date) => {
+// Fetch seller list or specific seller's delivery report
+export const getMilkDeliveryReport = async (date, seller_id = null) => {
   try {
-    const response = await api.get('/milk_delivery_report.php', {
-      params: { date },
-    });
+    const params = { date };
+    if (seller_id) {
+      params.seller_id = seller_id;
+    }
+    const response = await api.get('/getDistributeMilkData.php', { params });
     return response.data;
   } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to fetch deliveries');
+    throw new Error(error.response?.data?.message || 'Failed to fetch data');
   }
 };
 

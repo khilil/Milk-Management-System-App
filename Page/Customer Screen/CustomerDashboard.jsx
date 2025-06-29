@@ -8,8 +8,8 @@ import {
   TextInput,
   Alert,
   RefreshControl,
-  Linking, // Added for opening settings
-  Platform, // Added for platform-specific checks
+  Linking,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
@@ -40,7 +40,6 @@ const CustomerDashboard = ({ route }) => {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1;
 
-  // Load customer data from AsyncStorage or route.params
   const loadCustomer = useCallback(async () => {
     try {
       let userData = route.params?.customer;
@@ -75,7 +74,6 @@ const CustomerDashboard = ({ route }) => {
     loadCustomer();
   }, [loadCustomer]);
 
-  // Set navigation options
   useEffect(() => {
     if (customer) {
       navigation.setOptions({
@@ -91,7 +89,6 @@ const CustomerDashboard = ({ route }) => {
     }
   }, [navigation, customer]);
 
-  // Fetch monthly consumption and payment data
   const fetchData = useCallback(async () => {
     if (!customer) return;
     try {
@@ -110,7 +107,6 @@ const CustomerDashboard = ({ route }) => {
     fetchData();
   }, [fetchData]);
 
-  // Handle pull-to-refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -125,7 +121,6 @@ const CustomerDashboard = ({ route }) => {
     }
   }, [loadCustomer, fetchData]);
 
-  // Filter records based on date input
   useEffect(() => {
     if (!milkRecords) return;
     const filtered = milkRecords.filter(record =>
@@ -135,7 +130,6 @@ const CustomerDashboard = ({ route }) => {
     setCurrentPage(1);
   }, [dateFilter, milkRecords]);
 
-  // Update milk records when selected month changes
   useEffect(() => {
     if (monthlyData) {
       const records =
@@ -150,7 +144,6 @@ const CustomerDashboard = ({ route }) => {
     }
   }, [selectedMonth, monthlyData]);
 
-  // Calculate totals based on selected month
   const totalMilk = monthlyData
     ? selectedMonth === 'current'
       ? monthlyData.current_month.total_quantity
@@ -246,7 +239,6 @@ const CustomerDashboard = ({ route }) => {
 
   const downloadExcel = async () => {
     try {
-      // Only request permission for Android API < 30 (Android 10 and below)
       let hasPermission = true;
       let filePath = `${RNFS.DownloadDirectoryPath}/MilkRecords_${customer?.username || 'User'}_${Date.now()}.xlsx`;
 
@@ -268,7 +260,6 @@ const CustomerDashboard = ({ route }) => {
           );
 
           if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-            // Permission denied, fall back to app-specific directory
             hasPermission = false;
             filePath = `${RNFS.DocumentDirectoryPath}/MilkRecords_${customer?.username || 'User'}_${Date.now()}.xlsx`;
             Alert.alert(
@@ -286,7 +277,6 @@ const CustomerDashboard = ({ route }) => {
         }
       }
 
-      // Prepare Excel data
       const data = filteredRecords.map(record => ({
         Date: record.date,
         Quantity: record.quantity,
@@ -299,7 +289,6 @@ const CustomerDashboard = ({ route }) => {
 
       const wbout = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
 
-      // Write file to the chosen path
       await RNFS.writeFile(filePath, wbout, 'ascii');
 
       Alert.alert(
@@ -408,6 +397,7 @@ const CustomerDashboard = ({ route }) => {
                   : 'Next Month'}{' '}
                 Milk
               </Text>
+              
             </View>
             <View style={styles.statItem}>
               <Icon name="currency-inr" size={24} color="#2A5866" />
@@ -417,15 +407,31 @@ const CustomerDashboard = ({ route }) => {
           </View>
 
           <View style={styles.detailCard}>
+           
             <View style={styles.infoRow}>
               <Icon name="map-marker" size={18} color="#2A5866" />
               <Text style={styles.infoText}>{customer.address}</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.infoRow}>
+              <Icon name="idcard" size={18} color="#2A5866" />
+              <Text style={styles.infoText}>
+                Customer ID: {customer.id || 'N/A'}
+              </Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
               <Icon name="calendar" size={18} color="#2A5866" />
               <Text style={styles.infoText}>
                 Daily Quantity: {customer.milkQuantity}
+              </Text>
+            </View>
+            
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
+              <Icon name="currency-inr" size={18} color="#2A5866" />
+              <Text style={styles.infoText}>
+                Price per Liter: ₹{pricePerLiter.toFixed(2)}
               </Text>
             </View>
             <View style={styles.divider} />
@@ -466,13 +472,8 @@ const CustomerDashboard = ({ route }) => {
                 )}
               </Text>
             </View>
-            <View style={styles.divider} />
-            <View style={styles.infoRow}>
-              <Icon name="cash" size={18} color="#2A5866" />
-              <Text style={styles.infoText}>
-                Next Month Due: {thisMonthPaid ? '₹0' : `₹${totalPrice.toFixed(2)}`}
-              </Text>
-            </View>
+            
+
           </View>
 
           <View style={styles.filterContainer}>
@@ -589,7 +590,7 @@ const CustomerDashboard = ({ route }) => {
     <LinearGradient colors={['#F8F9FB', '#EFF2F6']} style={styles.container}>
       <FlatList
         data={customer ? paginatedRecords : []}
-        keyExtractor={item => item.key} 
+        keyExtractor={item => item.key}
         renderItem={renderMilkRecord}
         ListHeaderComponent={<HeaderContent />}
         ListEmptyComponent={

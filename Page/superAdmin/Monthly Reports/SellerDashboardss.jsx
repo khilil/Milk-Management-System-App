@@ -9,36 +9,38 @@ import {
   TextInput,
   Alert,
   ScrollView,
-  Dimensions,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import moment from 'moment';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as Animatable from 'react-native-animatable';
-import { useNavigation } from '@react-navigation/native';
 import { getMilkDeliveryReport } from '../../../database-connect/admin/getDistributeMilkData/getDistributeMilkData';
 
-const { width } = Dimensions.get('window'); // Get screen width for responsive design
-
-const MonthlyReports = () => {
-  const [sellers, setSellers] = useState([]);
-  const [filteredSellers, setFilteredSellers] = useState([]);
+const SellerDashboardss= ({ route }) => {
+  const { seller, selectedDate: initialDate } = route.params;
+  const [deliveries, setDeliveries] = useState([]);
+  const [filteredDeliveries, setFilteredDeliveries] = useState([]);
+  const [sellerTotals, setSellerTotals] = useState({
+    assigned_milk: 0,
+    distributed_milk: 0,
+    remaining_milk: 0,
+  });
   const [loading, setLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date(initialDate));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('seller_name'); // Options: 'seller_name', 'seller_id', 'assigned', 'distributed', 'remaining'
-  const navigation = useNavigation();
+  const [sortBy, setSortBy] = useState('date'); // Options: 'date', 'quantity', 'customer'
 
-  // Fetch sellers' data
-  const fetchSellers = async (date) => {
+  // Fetch deliveries for the seller
+  const fetchDeliveries = async (date) => {
     setLoading(true);
     try {
-      const formattedDate = moment(date).format('Y-MM-DD');
-      const result = await getMilkDeliveryReport(formattedDate);
+      const formattedDate = moment(date).format('YYYY-MM-DD');
+      const result = await getMilkDeliveryReport(formattedDate, seller.seller_id);
       if (result.status === 'success') {
-        setSellers(result.data);
-        setFilteredSellers(result.data);
+        setDeliveries(result.data);
+        setFilteredDeliveries(result.data);
+        setSellerTotals(result.seller_totals);
       } else {
         Alert.alert('Error', result.message);
       }
@@ -50,100 +52,92 @@ const MonthlyReports = () => {
   };
 
   useEffect(() => {
-    fetchSellers(selectedDate);
-  }, [selectedDate]);
+    fetchDeliveries(selectedDate);
+  }, []);
 
   // Handle date change
   const handleDateChange = (event, date) => {
     setShowDatePicker(false);
     if (date) {
       setSelectedDate(date);
-      fetchSellers(date);
+      fetchDeliveries(date);
       setSearchQuery('');
-      setSortBy('seller_name');
+      setSortBy('date');
     }
   };
 
   // Handle search
   const handleSearch = (query) => {
     setSearchQuery(query);
-    const filtered = sellers.filter((item) =>
-      item.seller_name.toLowerCase().includes(query.toLowerCase()) ||
-      item.seller_id.toString().includes(query)
+    const filtered = deliveries.filter((item) =>
+      item.customer_name.toLowerCase().includes(query.toLowerCase())
     );
-    setFilteredSellers(filtered);
+    setFilteredDeliveries(filtered);
   };
 
   // Handle sorting
   const handleSort = (type) => {
     setSortBy(type);
-    const sorted = [...filteredSellers].sort((a, b) => {
-      if (type === 'seller_id') {
-        return a.seller_id - b.seller_id;
-      } else if (type === 'assigned') {
-        return b.assigned_milk - a.assigned_milk;
-      } else if (type === 'distributed') {
-        return b.distributed_milk - a.distributed_milk;
-      } else if (type === 'remaining') {
-        return b.remaining_milk - a.remaining_milk;
+    const sorted = [...filteredDeliveries].sort((a, b) => {
+      if (type === 'quantity') {
+        return b.quantity - a.quantity;
+      } else if (type === 'customer') {
+        return a.customer_name.localeCompare(b.customer_name);
       } else {
-        return a.seller_name.localeCompare(b.seller_name);
+        return new Date(b.date_time) - new Date(a.date_time);
       }
     });
-    setFilteredSellers(sorted);
+    setFilteredDeliveries(sorted);
   };
-
-  // Calculate dashboard metrics
-  const totalAssigned = filteredSellers.reduce((sum, item) => sum + item.assigned_milk, 0);
-  const totalDistributed = filteredSellers.reduce((sum, item) => sum + item.distributed_milk, 0);
-  const totalRemaining = filteredSellers.reduce((sum, item) => sum + item.remaining_milk, 0);
 
   // Render table header
   const renderTableHeader = () => (
     <View style={styles.tableHeader}>
-      <Text style={[styles.tableHeaderText, { flex: 1 }]}>Seller ID</Text>
-      <Text style={[styles.tableHeaderText, { flex: 2 }]}>Seller Name</Text>
-      <Text style={[styles.tableHeaderText, { flex: 1.5 }]}>Assigned (L)</Text>
-      <Text style={[styles.tableHeaderText, { flex: 1.5 }]}>Distributed (L)</Text>
-      <Text style={[styles.tableHeaderText, { flex: 1.5 }]}>Remaining (L)</Text>
+      <Text style={[styles.tableHeaderText, { flex: 2 }]}>Customer</Text>
+      <Text style={[styles.tableHeaderText, { flex: 1 }]}>Qty (L)</Text>
+      <Text style={[styles.tableHeaderText, { flex: 1.5 }]}>Time</Text>
+      <Text style={[styles.tableHeaderText, { flex: 1.5 }]}>Date</Text>
     </View>
   );
 
   // Render each table row
   const renderTableRow = ({ item, index }) => (
-    <TouchableOpacity
-      onPress={() => navigation.navigate('SellerDashboards', { seller: item, selectedDate })}
+    <View
       style={[styles.tableRow, { backgroundColor: index % 2 === 0 ? '#FFF' : '#F8FAFC' }]}
-      activeOpacity={0.7}
     >
-      <Text style={[styles.tableCell, { flex: 1 }]}>{item.seller_id}</Text>
-      <Text style={[styles.tableCell, { flex: 2 }]} numberOfLines={1} ellipsizeMode="tail">
-        {item.seller_name}
+      <Text style={[styles.tableCell, { flex: 2 }]} numberOfLines={1}>
+        {item.customer_name}
       </Text>
-      <Text style={[styles.tableCell, { flex: 1.5 }]}>{item.assigned_milk.toFixed(2)}</Text>
-      <Text style={[styles.tableCell, { flex: 1.5 }]}>{item.distributed_milk.toFixed(2)}</Text>
-      <Text style={[styles.tableCell, { flex: 1.5 }]}>{item.remaining_milk.toFixed(2)}</Text>
-    </TouchableOpacity>
+      <Text style={[styles.tableCell, { flex: 1 }]}>{item.quantity.toFixed(2)}</Text>
+      <Text style={[styles.tableCell, { flex: 1.5 }]}>
+        {moment(item.date_time).format('hh:mm A')}
+      </Text>
+      <Text style={[styles.tableCell, { flex: 1.5 }]}>
+        {moment(item.date_time).format('DD-MM-YYYY')}
+      </Text>
+    </View>
   );
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <Text style={styles.header}>Milk Delivery Dashboard</Text>
+      <Text style={styles.header}>
+        {seller.seller_name} (ID: {seller.seller_id})
+      </Text>
 
-      {/* Dashboard Summary */}
+      {/* Summary Boxes */}
       <View style={styles.summaryContainer}>
         <Animatable.View animation="fadeIn" duration={500} style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Total Assigned</Text>
-          <Text style={styles.summaryValue}>{totalAssigned.toFixed(2)} L</Text>
+          <Text style={styles.summaryTitle}>Assigned Milk</Text>
+          <Text style={styles.summaryValue}>{sellerTotals.assigned_milk.toFixed(2)} L</Text>
         </Animatable.View>
         <Animatable.View animation="fadeIn" duration={500} delay={100} style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Total Distributed</Text>
-          <Text style={styles.summaryValue}>{totalDistributed.toFixed(2)} L</Text>
+          <Text style={styles.summaryTitle}>Distributed Milk</Text>
+          <Text style={styles.summaryValue}>{sellerTotals.distributed_milk.toFixed(2)} L</Text>
         </Animatable.View>
         <Animatable.View animation="fadeIn" duration={500} delay={200} style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Total Remaining</Text>
-          <Text style={styles.summaryValue}>{totalRemaining.toFixed(2)} L</Text>
+          <Text style={styles.summaryTitle}>Remaining Milk</Text>
+          <Text style={styles.summaryValue}>{sellerTotals.remaining_milk.toFixed(2)} L</Text>
         </Animatable.View>
       </View>
 
@@ -171,7 +165,7 @@ const MonthlyReports = () => {
         <Icon name="search" size={20} color="#2A5866" style={styles.icon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search by Seller or ID"
+          placeholder="Search by Customer"
           placeholderTextColor="#999"
           value={searchQuery}
           onChangeText={handleSearch}
@@ -180,43 +174,32 @@ const MonthlyReports = () => {
 
       {/* Sort Buttons */}
       <View style={styles.sortContainer}>
-
         <TouchableOpacity
-          style={[styles.sortButton, sortBy === 'seller_name' && styles.sortButtonActive]}
-          onPress={() => handleSort('seller_name')}
+          style={[styles.sortButton, sortBy === 'date' && styles.sortButtonActive]}
+          onPress={() => handleSort('date')}
         >
-          <Text style={[styles.sortButtonText, sortBy === 'seller_name' && styles.sortButtonTextActive]}>
-            Seller
+          <Text style={[styles.sortButtonText, sortBy === 'date' && styles.sortButtonTextActive]}>
+            Time
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.sortButton, sortBy === 'assigned' && styles.sortButtonActive]}
-          onPress={() => handleSort('assigned')}
+          style={[styles.sortButton, sortBy === 'quantity' && styles.sortButtonActive]}
+          onPress={() => handleSort('quantity')}
         >
           <Text
-            style={[styles.sortButtonText, sortBy === 'assigned' && styles.sortButtonTextActive]}
+            style={[styles.sortButtonText, sortBy === 'quantity' && styles.sortButtonTextActive]}
           >
-            Assigned
+            Quantity
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.sortButton, sortBy === 'distributed' && styles.sortButtonActive]}
-          onPress={() => handleSort('distributed')}
+          style={[styles.sortButton, sortBy === 'customer' && styles.sortButtonActive]}
+          onPress={() => handleSort('customer')}
         >
           <Text
-            style={[styles.sortButtonText, sortBy === 'distributed' && styles.sortButtonTextActive]}
+            style={[styles.sortButtonText, sortBy === 'customer' && styles.sortButtonTextActive]}
           >
-            Distributed
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.sortButton, sortBy === 'remaining' && styles.sortButtonActive]}
-          onPress={() => handleSort('remaining')}
-        >
-          <Text
-            style={[styles.sortButtonText, sortBy === 'remaining' && styles.sortButtonTextActive]}
-          >
-            Remaining
+            Customer
           </Text>
         </TouchableOpacity>
       </View>
@@ -224,20 +207,22 @@ const MonthlyReports = () => {
       {/* Table */}
       {loading ? (
         <ActivityIndicator size="large" color="#2A5866" style={styles.loader} />
-      ) : filteredSellers.length === 0 ? (
-        <Text style={styles.noDataText}>No sellers found for this date</Text>
+      ) : filteredDeliveries.length === 0 ? (
+        <Text style={styles.noDataText}>No deliveries found for this date</Text>
       ) : (
         <ScrollView style={styles.tableContainer} nestedScrollEnabled={true}>
-          <View style={styles.tableWrapper}>
-            {renderTableHeader()}
-            <FlatList
-              data={filteredSellers}
-              renderItem={renderTableRow}
-              keyExtractor={(item) => item.seller_id.toString()}
-              scrollEnabled={false}
-              contentContainerStyle={styles.list}
-            />
-          </View>
+          <ScrollView horizontal={true} showsHorizontalScrollIndicator={true}>
+            <View>
+              {renderTableHeader()}
+              <FlatList
+                data={filteredDeliveries}
+                renderItem={renderTableRow}
+                keyExtractor={(item) => item.delivery_id.toString()}
+                scrollEnabled={false}
+                contentContainerStyle={styles.list}
+              />
+            </View>
+          </ScrollView>
         </ScrollView>
       )}
     </View>
@@ -360,7 +345,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
-
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#2A5866',
@@ -372,11 +356,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1A3C4A',
   },
   tableHeaderText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FFF',
     textAlign: 'left',
     paddingHorizontal: 4,
+    minWidth: 100,
   },
   tableRow: {
     flexDirection: 'row',
@@ -386,11 +371,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E0E0E0',
   },
   tableCell: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#333',
     fontWeight: '500',
     textAlign: 'left',
     paddingHorizontal: 4,
+    minWidth: 100,
   },
   loader: {
     marginTop: 20,
@@ -410,4 +396,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MonthlyReports;
+export default SellerDashboardss;

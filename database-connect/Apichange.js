@@ -41,4 +41,5 @@ export const API_CONFIG = {
   seller_detail_page: 'http://192.168.101.171/milk_dist_system/admin/seller_detail_page.php',
   admin_deashbord: 'http://192.168.101.171/milk_dist_system/admin/admin_deashbord.php',
   seller_deashbord: 'http://192.168.101.171/milk_dist_system/seller/seller_dashboard.php',
+  get_seller:  "http://192.168.101.171/milk_dist_system/admin/get_seller.php"
 };

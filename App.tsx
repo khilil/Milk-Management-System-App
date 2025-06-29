@@ -21,6 +21,7 @@ import AddAddress from './Page/superAdmin/Address/Address';
 import AddressSelectionScreen from './Page/Seller Screen/addressSelect/AddressSelect';
 import GatherPayment from './Page/Seller Screen/gather-payment/gather-payment';
 import SellerDetailScreen from './Page/superAdmin/seller/SellerDetailScreen';
+import SellerDashboardss from './Page/superAdmin/Monthly Reports/SellerDashboardss';
 
 const Stack = createNativeStackNavigator();
 
@@ -249,7 +250,18 @@ export default function App() {
             headerTitleStyle: { fontSize: 20, fontWeight: '600', letterSpacing: 1 },
           }}
         />
+         <Stack.Screen
+          name="SellerDashboards"
+          component={SellerDashboardss}
+          options={{
+            title: 'Seller Dashboard',
+            headerStyle: { backgroundColor: '#2A5866', elevation: 4 },
+            headerTintColor: '#FFFFFF',
+            headerTitleStyle: { fontSize: 20, fontWeight: '600', letterSpacing: 1 },
+          }}
+        />
       </Stack.Navigator>
+      
     </NavigationContainer>
   );
 }
