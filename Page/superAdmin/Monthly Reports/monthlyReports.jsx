@@ -24,7 +24,7 @@ const MonthlyReports = () => {
   const [sellers, setSellers] = useState([]);
   const [filteredSellers, setFilteredSellers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(moment('2025-07-01').toDate()); // Default to July 1, 2025
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('seller_name'); // Options: 'seller_name', 'seller_id', 'assigned', 'distributed', 'remaining'
@@ -34,7 +34,7 @@ const MonthlyReports = () => {
   const fetchSellers = async (date) => {
     setLoading(true);
     try {
-      const formattedDate = moment(date).format('Y-MM-DD');
+      const formattedDate = moment(date).format('YYYY-MM-DD');
       const result = await getMilkDeliveryReport(formattedDate);
       if (result.status === 'success') {
         setSellers(result.data);
@@ -154,7 +154,9 @@ const MonthlyReports = () => {
       >
         <Icon name="calendar-today" size={20} color="#FFF" style={styles.icon} />
         <Text style={styles.dateButtonText}>
-          {moment(selectedDate).format('DD-MM-YYYY')}
+          {moment(selectedDate).format('DD-MM-YYYY') === moment().format('DD-MM-YYYY')
+            ? 'Today'
+            : moment(selectedDate).format('DD-MM-YYYY')}
         </Text>
       </TouchableOpacity>
       {showDatePicker && (
@@ -162,6 +164,7 @@ const MonthlyReports = () => {
           value={selectedDate}
           mode="date"
           display="default"
+          maximumDate={new Date()} // Prevent selecting future dates
           onChange={handleDateChange}
         />
       )}
@@ -193,9 +196,7 @@ const MonthlyReports = () => {
           style={[styles.sortButton, sortBy === 'assigned' && styles.sortButtonActive]}
           onPress={() => handleSort('assigned')}
         >
-          <Text
-            style={[styles.sortButtonText, sortBy === 'assigned' && styles.sortButtonTextActive]}
-          >
+          <Text style={[styles.sortButtonText, sortBy === 'assigned' && styles.sortButtonTextActive]}>
             Assigned
           </Text>
         </TouchableOpacity>
@@ -203,9 +204,7 @@ const MonthlyReports = () => {
           style={[styles.sortButton, sortBy === 'distributed' && styles.sortButtonActive]}
           onPress={() => handleSort('distributed')}
         >
-          <Text
-            style={[styles.sortButtonText, sortBy === 'distributed' && styles.sortButtonTextActive]}
-          >
+          <Text style={[styles.sortButtonText, sortBy === 'distributed' && styles.sortButtonTextActive]}>
             Distributed
           </Text>
         </TouchableOpacity>
@@ -213,9 +212,7 @@ const MonthlyReports = () => {
           style={[styles.sortButton, sortBy === 'remaining' && styles.sortButtonActive]}
           onPress={() => handleSort('remaining')}
         >
-          <Text
-            style={[styles.sortButtonText, sortBy === 'remaining' && styles.sortButtonTextActive]}
-          >
+          <Text style={[styles.sortButtonText, sortBy === 'remaining' && styles.sortButtonTextActive]}>
             Remaining
           </Text>
         </TouchableOpacity>
@@ -360,7 +357,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
-
+  tableWrapper: {
+    width: width - 32, // Adjust to fit screen width (accounting for 16px padding on each side)
+  },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#2A5866',
