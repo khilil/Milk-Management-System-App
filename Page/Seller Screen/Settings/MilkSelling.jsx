@@ -14,7 +14,6 @@ import {
   ScrollView,
   RefreshControl,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
@@ -61,6 +60,14 @@ const MilkSelling = () => {
     }).start();
   }, [showEntries]);
 
+  // Debug log for data and rendering
+  useEffect(() => {
+    console.log('Filtered Customers:', filteredCustomers.length);
+    console.log('Entries:', entries.length);
+    console.log('Selected Address ID:', selectedAddressId);
+    console.log('Loading:', loading, 'Page:', page, 'Has More:', hasMore);
+  }, [filteredCustomers, entries, selectedAddressId, loading, page, hasMore]);
+
   // Load initial data
   useEffect(() => {
     const loadInitialData = async () => {
@@ -106,7 +113,7 @@ const MilkSelling = () => {
               type: 'error',
               text1: 'Error',
               text2: 'No areas selected. Please select areas first.',
-              });
+            });
             navigation.navigate('AddressSelect');
           }
         } else {
@@ -141,10 +148,10 @@ const MilkSelling = () => {
           const customerData = await fetchCustomers([selectedAddressId]);
           const start = (page - 1) * ITEMS_PER_PAGE;
           const end = start + ITEMS_PER_PAGE;
-          const paginatedData = customerData.slice(0, end);
+          const paginatedData = customerData.slice(start, end);
           setCustomers(page === 1 ? paginatedData : [...customers, ...paginatedData]);
           setFilteredCustomers(page === 1 ? paginatedData : [...filteredCustomers, ...paginatedData]);
-          setHasMore(customerData.length > end);
+          setHasMore(end < customerData.length);
         } catch (error) {
           console.error('Fetch Customers Error:', error);
           Toast.show({
@@ -281,8 +288,8 @@ const MilkSelling = () => {
     debounce((text) => {
       const filtered = customers.filter(
         (customer) =>
-          customer.Name.toLowerCase().includes(text.toLowerCase()) ||
-          customer.Customer_id.toString().includes(text)
+          customer.Name?.toLowerCase().includes(text.toLowerCase()) ||
+          customer.Customer_id?.toString().includes(text)
       );
       setFilteredCustomers(filtered);
     }, 300),
@@ -295,20 +302,20 @@ const MilkSelling = () => {
   };
 
   // Load more customers
-  const loadMoreCustomers = () => {
+  const loadMoreCustomers = useCallback(() => {
     if (!loading && hasMore) {
       setPage(prev => prev + 1);
     }
-  };
+  }, [loading, hasMore]);
 
   // Select customer for milk delivery
-  const handleSelectCustomer = (customer) => {
+  const handleSelectCustomer = useCallback((customer) => {
     setSelectedCustomer(customer);
     setMilkQuantity('');
     setDate(new Date().toISOString().split('T')[0]);
     setSelectedDate(new Date());
     setModalVisible(true);
-  };
+  }, []);
 
   // Record milk delivery
   const handleAddEntry = async () => {
@@ -420,14 +427,14 @@ const MilkSelling = () => {
   };
 
   // Handle address selection
-  const handleAddressSelect = (addressId) => {
+  const handleAddressSelect = useCallback((addressId) => {
     setSelectedAddressId(addressId);
     setSearchText('');
     setPage(1);
     setFilteredCustomers([]);
     setCustomers([]);
     setHasMore(true);
-  };
+  }, []);
 
   // Handle date change
   const onDateChange = (event, selected) => {
@@ -459,7 +466,7 @@ const MilkSelling = () => {
   };
 
   // Render customer item
-  const renderCustomer = ({ item }) => (
+  const renderCustomer = useCallback(({ item }) => (
     <TouchableOpacity
       style={styles.customerCard}
       onPress={() => handleSelectCustomer(item)}
@@ -477,10 +484,10 @@ const MilkSelling = () => {
       </View>
       <AntDesign name="right" size={16} color="#2C5282" />
     </TouchableOpacity>
-  );
+  ), [handleSelectCustomer]);
 
   // Render delivery entry
-  const renderEntry = ({ item }) => (
+  const renderEntry = useCallback(({ item }) => (
     <View style={styles.entryCard}>
       <View style={styles.entryInfo}>
         <Text style={styles.entryText}>
@@ -492,10 +499,10 @@ const MilkSelling = () => {
         <AntDesign name="delete" size={20} color="#E53E3E" />
       </TouchableOpacity>
     </View>
-  );
+  ), [handleDeleteEntry]);
 
   // Render address item
-  const renderAddress = ({ item }) => (
+  const renderAddress = useCallback(({ item }) => (
     <TouchableOpacity
       style={[
         styles.addressButton,
@@ -512,7 +519,7 @@ const MilkSelling = () => {
         {item.Name || `Area ${item.Address_id}`}
       </Text>
     </TouchableOpacity>
-  );
+  ), [handleAddressSelect, selectedAddressId]);
 
   // Preset quantities
   const presetQuantities = [0.5, 1, 1.5, 2, 2.5];
@@ -521,7 +528,7 @@ const MilkSelling = () => {
     <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -531,6 +538,7 @@ const MilkSelling = () => {
           />
         }
       >
+        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Milk Distribution</Text>
           <TouchableOpacity
@@ -541,6 +549,7 @@ const MilkSelling = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Summary Card */}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>{date} - Seller ID: {sellerId || 'N/A'}</Text>
           <View style={styles.summaryGrid}>
@@ -559,6 +568,7 @@ const MilkSelling = () => {
           </View>
         </View>
 
+        {/* Filter Section */}
         <View style={styles.filterSection}>
           <Text style={styles.sectionTitle}>Select Area</Text>
           <FlatList
@@ -571,6 +581,7 @@ const MilkSelling = () => {
           />
         </View>
 
+        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <AntDesign name="search1" size={20} color="#2C5282" style={styles.searchIcon} />
           <TextInput
@@ -587,6 +598,7 @@ const MilkSelling = () => {
           )}
         </View>
 
+        {/* Tabs */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[styles.tab, !showEntries && styles.tabActive]}
@@ -612,32 +624,39 @@ const MilkSelling = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Animated List */}
         <Animated.View style={[styles.tabContent, { opacity: fadeAnim }]}>
           {loading && page === 1 ? (
             <ActivityIndicator size="large" color="#2C5282" style={styles.loader} />
           ) : showEntries ? (
-            <FlashList
+            <FlatList
               data={entries}
               renderItem={renderEntry}
               keyExtractor={(item) => `entry-${item.delivery_id}`}
-              estimatedItemSize={70}
               ListEmptyComponent={<Text style={styles.noResults}>No entries for {date}</Text>}
+              scrollEnabled={false}
             />
           ) : (
-            <FlashList
-              data={filteredCustomers}
-              renderItem={renderCustomer}
-              keyExtractor={(item) => `customer-${item.Customer_id}`}
-              estimatedItemSize={80}
-              onEndReached={loadMoreCustomers}
-              onEndReachedThreshold={0.5}
-              ListEmptyComponent={<Text style={styles.noResults}>No customers found</Text>}
-              ListFooterComponent={
-                loading && hasMore ? (
-                  <ActivityIndicator size="small" color="#2C5282" style={styles.footerLoader} />
-                ) : null
-              }
-            />
+            <View>
+              <FlatList
+                data={filteredCustomers}
+                renderItem={renderCustomer}
+                keyExtractor={(item) => `customer-${item.Customer_id}`}
+                ListEmptyComponent={<Text style={styles.noResults}>No customers found</Text>}
+                scrollEnabled={false}
+              />
+              {hasMore && (
+                <TouchableOpacity
+                  style={[styles.loadMoreButton, loading && styles.buttonDisabled]}
+                  onPress={loadMoreCustomers}
+                  disabled={loading}
+                >
+                  <Text style={styles.loadMoreText}>
+                    {loading ? 'Loading...' : 'Load More'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           )}
         </Animated.View>
       </ScrollView>
@@ -748,10 +767,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F7FA',
-    padding: 20,
   },
   scrollContent: {
-    paddingBottom: 20,
+    padding: 20,
+    paddingBottom: 60, // Increased padding for bottom content
   },
   header: {
     flexDirection: 'row',
@@ -833,14 +852,13 @@ const styles = StyleSheet.create({
     marginRight: 8,
     backgroundColor: '#2A5866',
     borderRadius: 16,
-    borderWidth: 0,
   },
   addressButtonSelected: {
-    backgroundColor: '#102D36FF',
+    backgroundColor: '#102D36',
   },
   addressText: {
     fontSize: 14,
-    color: '#F9FCFFFF',
+    color: '#F9FCFF',
     fontWeight: '600',
   },
   addressTextSelected: {
@@ -862,7 +880,7 @@ const styles = StyleSheet.create({
   },
   searchIcon: {
     marginRight: 8,
-    color: '#2A5866',
+    color: '#2C5282',
   },
   searchInput: {
     flex: 1,
@@ -903,7 +921,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   tabContent: {
-    flex: 1,
+    minHeight: 100, // Minimum height for content
   },
   customerCard: {
     flexDirection: 'row',
@@ -981,9 +999,21 @@ const styles = StyleSheet.create({
     marginVertical: 20,
     color: '#2A5866',
   },
-  footerLoader: {
+  loadMoreButton: {
+    backgroundColor: '#2A5866',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
     marginVertical: 16,
-    color: '#2A5866',
+    marginHorizontal: 20,
+  },
+  buttonDisabled: {
+    backgroundColor: '#A0AEC0',
+  },
+  loadMoreText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -1048,11 +1078,11 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   presetButtonSelected: {
-    backgroundColor: '#102D36FF',
+    backgroundColor: '#102D36',
   },
   presetButtonText: {
     fontSize: 14,
-    color: '#F9FCFFFF',
+    color: '#F9FCFF',
     fontWeight: '600',
   },
   presetButtonTextSelected: {
@@ -1066,7 +1096,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     marginVertical: 8,
-    borderWidth: 0,
   },
   modalInputField: {
     flex: 1,
@@ -1075,7 +1104,7 @@ const styles = StyleSheet.create({
   },
   inputIcon: {
     marginRight: 10,
-    color: '#2A5866',
+    color: '#2C5282',
   },
   inputText: {
     fontSize: 16,
